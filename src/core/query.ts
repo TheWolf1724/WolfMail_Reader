@@ -13,6 +13,7 @@ export interface ParsedQuery {
   attachment: string[]
   folder: string[]
   label: string[]
+  not: { from: string[]; to: string[]; subject: string[]; attachment: string[]; folder: string[]; label: string[] }
   before: number | null
   after: number | null
   hasAttachment: boolean
@@ -26,7 +27,7 @@ const OPERATORS = new Set([
 
 export function tokenize(input: string): string[] {
   const tokens: string[] = []
-  const re = /(-?[\p{L}]+:)?"([^"]*)"|(\S+)/gu
+  const re = /(-?[\p{L}]*:?)?"([^"]*)"|(\S+)/gu
   let m: RegExpExecArray | null
   while ((m = re.exec(input))) {
     if (m[3] !== undefined) tokens.push(m[3])
@@ -54,7 +55,7 @@ function parseDate(v: string): number | null {
 export function parseQuery(input: string): ParsedQuery {
   const q: ParsedQuery = {
     fts: [], ftsNot: [], from: [], to: [], subject: [], attachment: [], folder: [], label: [],
-    before: null, after: null, hasAttachment: false, unread: false
+    not: { from: [], to: [], subject: [], attachment: [], folder: [], label: [] }, before: null, after: null, hasAttachment: false, unread: false
   }
   for (const tok of tokenize(input.trim())) {
     const neg = tok.startsWith('-') && tok.length > 1
@@ -65,12 +66,12 @@ export function parseQuery(input: string): ParsedQuery {
       const val = unquote(op[2])
       if (!val) continue
       switch (key) {
-        case 'de': case 'from': q.from.push(val); break
-        case 'para': case 'to': q.to.push(val); break
-        case 'asunto': case 'subject': q.subject.push(val); break
-        case 'adjunto': case 'attachment': q.attachment.push(val); break
-        case 'carpeta': case 'folder': q.folder.push(val); break
-        case 'etiqueta': case 'label': q.label.push(val); break
+        case 'de': case 'from': (neg ? q.not.from : q.from).push(val); break
+        case 'para': case 'to': (neg ? q.not.to : q.to).push(val); break
+        case 'asunto': case 'subject': (neg ? q.not.subject : q.subject).push(val); break
+        case 'adjunto': case 'attachment': (neg ? q.not.attachment : q.attachment).push(val); break
+        case 'carpeta': case 'folder': (neg ? q.not.folder : q.folder).push(val); break
+        case 'etiqueta': case 'label': (neg ? q.not.label : q.label).push(val); break
         case 'antes': case 'before': q.before = parseDate(val) ?? q.before; break
         case 'despues': case 'after': q.after = parseDate(val) ?? q.after; break
         case 'tiene': case 'has':
@@ -83,7 +84,7 @@ export function parseQuery(input: string): ParsedQuery {
       continue
     }
     const term = unquote(body)
-    if (!term) continue
+    if (!term || !/[\p{L}\p{N}]/u.test(term)) continue
     const expr = term.includes(' ') ? ftsEscape(term) : `${ftsEscape(term)}*`
     if (neg) q.ftsNot.push(expr)
     else q.fts.push(expr)
@@ -141,6 +142,12 @@ export function queryToSql(q: ParsedQuery): SqlPart {
     where.push(`m.labels LIKE ? ESCAPE '\\'`)
     params.push(like(v))
   }
+  for (const v of q.not.from) { where.push(`NOT (m.from_email LIKE ? ESCAPE '\\' OR m.from_name LIKE ? ESCAPE '\\')`); params.push(like(v), like(v)) }
+  for (const v of q.not.to) { where.push(`NOT (m.to_text LIKE ? ESCAPE '\\' OR m.cc_text LIKE ? ESCAPE '\\')`); params.push(like(v), like(v)) }
+  for (const v of q.not.subject) { where.push(`m.subject NOT LIKE ? ESCAPE '\\'`); params.push(like(v)) }
+  for (const v of q.not.attachment) { where.push(`NOT EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.name LIKE ? ESCAPE '\\')`); params.push(like(v)) }
+  for (const v of q.not.folder) { where.push(`m.folder_id NOT IN (SELECT id FROM folders WHERE path LIKE ? ESCAPE '\\')`); params.push(like(v)) }
+  for (const v of q.not.label) { where.push(`m.labels NOT LIKE ? ESCAPE '\\'`); params.push(like(v)) }
   if (q.before !== null) { where.push('m.date < ?'); params.push(q.before) }
   if (q.after !== null) { where.push('m.date >= ?'); params.push(q.after) }
   if (q.hasAttachment) where.push('m.has_attachments = 1')

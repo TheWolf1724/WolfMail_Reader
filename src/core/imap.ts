@@ -53,7 +53,7 @@ export async function syncImap(lib: Library, acc: ImapAccount, opts: SyncOptions
     auth: acc.auth.kind === 'oauth' ? { user: acc.user, accessToken: acc.auth.accessToken } : { user: acc.user, pass: acc.auth.password }
   })
   client.on('error', () => { /* se informa al fallar la operacion en curso */ })
-  const sourceId = lib.addSource('imap', acc.label, `imap://${acc.user}@${acc.host}`)
+  const sourceId = lib.addSource('imap', acc.label, `imap://${acc.id}`)
   try {
     await client.connect()
     const boxes = orderMailboxes(await client.list())

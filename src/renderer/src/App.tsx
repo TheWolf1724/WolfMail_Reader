@@ -36,6 +36,7 @@ export function App(): JSX.Element {
   const [modal, setModal] = useState<Modal>(null)
   const [job, setJob] = useState<ImportProgress | null>(null)
   const [toast, setToast] = useState('')
+  const [readIds, setReadIds] = useState<Set<number>>(new Set())
   const [dragging, setDragging] = useState(false)
   const [narrow, setNarrow] = useState(window.innerWidth <= 900)
   const [showSide, setShowSide] = useState(false)
@@ -260,14 +261,14 @@ export function App(): JSX.Element {
                   <button className="btn" aria-pressed={settings.grouped} onClick={() => patchSettings({ grouped: !settings.grouped })}>{t('Conversaciones')}</button>
                 </div>
               </div>
-              <MessageList filter={filter} version={version} lang={lang} selectedId={selected?.id ?? null} listRef={listRef}
+              <MessageList filter={filter} version={version} lang={lang} selectedId={selected?.id ?? null} listRef={listRef} readIds={readIds}
                 onSelect={(r) => setSelected(r)} onOpen={() => { setReadMode(true); document.getElementById('reader')?.focus() }} onTotal={setTotal} />
             </section>
             {!narrow && <div className={'splitter' + (bottom ? ' h' : '')} role="separator" aria-orientation={bottom ? 'horizontal' : 'vertical'} aria-label={t('Tamaño de la lista')}
               aria-valuenow={bottom ? widths.listH : widths.list} tabIndex={0} onPointerDown={(e) => startDrag(bottom ? 'listH' : 'list', e)} onKeyDown={splitKey(bottom ? 'listH' : 'list')} />}
             <main className="pane reader-pane" aria-label={t('Lectura del mensaje')}>
               <Reader row={selected} lang={lang} fontScale={settings.fontScale} allowRemoteAlways={false} narrow={narrow}
-                onBack={() => setReadMode(false)} onLink={askLink} onHeaders={(m) => setModal({ kind: 'headers', m })}
+                onRead={(id) => setReadIds((s) => new Set(s).add(id))} onBack={() => setReadMode(false)} onLink={askLink} onHeaders={(m) => setModal({ kind: 'headers', m })}
                 onNotify={notify} onAskOpen={(a) => setModal({ kind: 'attachment', a })} />
             </main>
           </div>

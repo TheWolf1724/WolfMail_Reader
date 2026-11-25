@@ -4,10 +4,10 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-export async function launch({ port = 9333, extraArgs = [], env = {} } = {}) {
+export async function launch({ port = 9333, extraArgs = [], env = {}, exe = null } = {}) {
   const userData = mkdtempSync(join(tmpdir(), 'wolfmail-e2e-'))
   const electron = join(process.cwd(), 'node_modules/.bin/electron')
-  const proc = spawn(electron, ['.', `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--inspect=9339', ...extraArgs], {
+  const proc = spawn(exe ?? electron, [...(exe ? [] : ['.']), `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--inspect=9339', ...extraArgs], {
     env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe']
   })
   let log = ''

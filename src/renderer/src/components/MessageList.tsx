@@ -15,9 +15,10 @@ interface Props {
   onOpen: () => void
   onTotal: (n: number) => void
   listRef: React.RefObject<HTMLDivElement | null>
+  readIds: Set<number>
 }
 
-export function MessageList({ filter, version, lang, selectedId, onSelect, onOpen, onTotal, listRef }: Props): JSX.Element {
+export function MessageList({ filter, version, lang, selectedId, onSelect, onOpen, onTotal, listRef, readIds }: Props): JSX.Element {
   const t = useT()
   const [total, setTotal] = useState(0)
   const [rowH, setRowH] = useState(72)
@@ -28,6 +29,8 @@ export function MessageList({ filter, version, lang, selectedId, onSelect, onOpe
   const inflight = useRef(new Set<number>())
   const [, bump] = useState(0)
   const epoch = useRef(0)
+  const lastFilter = useRef('')
+  const wantSelect = useRef(false)
   const filterKey = JSON.stringify(filter)
 
   // Altura de fila segun densidad y tamano de texto (variable CSS --row-h).
@@ -57,14 +60,18 @@ export function MessageList({ filter, version, lang, selectedId, onSelect, onOpe
     const my = ++epoch.current
     pages.current.clear()
     inflight.current.clear()
-    setActive(0)
-    if (listRef.current) listRef.current.scrollTop = 0
+    // Solo una consulta nueva vuelve al principio; recargar datos conserva la posicion.
+    if (lastFilter.current !== filterKey) {
+      lastFilter.current = filterKey
+      setActive(0)
+      if (listRef.current) listRef.current.scrollTop = 0
+    }
     void window.wolf.count(filter).then((n) => {
       if (my !== epoch.current) return
       setTotal(n)
       onTotal(n)
       bump((x) => x + 1)
-    })
+    }).catch(() => undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey, version])
 
@@ -77,7 +84,7 @@ export function MessageList({ filter, version, lang, selectedId, onSelect, onOpe
       pages.current.set(page, rows)
       inflight.current.delete(page)
       bump((x) => x + 1)
-    })
+    }).catch(() => { inflight.current.delete(page); setTimeout(() => bump((x) => x + 1), 1500) }) // reintento
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey])
 
@@ -97,6 +104,7 @@ export function MessageList({ filter, version, lang, selectedId, onSelect, onOpe
     }
     const r = rowAt(n)
     if (r) onSelect(r)
+    else wantSelect.current = true // la pagina aun no ha llegado: se selecciona al cargarse
   }
 
   const onKey = (e: React.KeyboardEvent): void => {
@@ -114,20 +122,26 @@ export function MessageList({ filter, version, lang, selectedId, onSelect, onOpe
     e.preventDefault()
   }
 
+  const activeRow = rowAt(active)
+  useEffect(() => {
+    if (wantSelect.current && activeRow) { wantSelect.current = false; onSelect(activeRow) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRow])
+
   const items: JSX.Element[] = []
   for (let i = first; i <= last; i++) {
     const r = rowAt(i)
     const top = i * rowH
     if (!r) {
-      items.push(<div key={'s' + i} className="msg-row" style={{ top }} aria-hidden="true"><div className="line"><span className="from" style={{ opacity: 0.4 }}>...</span></div></div>)
+      items.push(<div key={'s' + i} id={'row-' + i} role="option" aria-selected={false} aria-label="..." className="msg-row" style={{ top }}><div className="line"><span className="from" style={{ opacity: 0.4 }}>...</span></div></div>)
       continue
     }
     const who = senderLabel(r.fromName, r.fromEmail, t('Sin remitente'))
     items.push(
       <div key={r.id} id={'row-' + i} role="option" aria-selected={r.id === selectedId} aria-posinset={i + 1} aria-setsize={total}
-        className={'msg-row' + (r.unread ? ' unread' : '') + (i === active ? ' active' : '')} style={{ top }}
+        className={'msg-row' + (r.unread && !readIds.has(r.id) ? ' unread' : '') + (i === active ? ' active' : '')} style={{ top }}
         onClick={() => { setActive(i); onSelect(r); listRef.current?.focus() }} onDoubleClick={onOpen}
-        aria-label={`${r.unread ? t('No leídos') + ', ' : ''}${who}, ${r.subject || t('Sin asunto')}, ${formatDate(r.date, lang, true)}${r.hasAttachments ? ', ' + t('Con adjuntos') : ''}${r.threadCount > 1 ? ', ' + r.threadCount + ' ' + t('mensajes') : ''}`}>
+        aria-label={`${r.unread && !readIds.has(r.id) ? t('No leídos') + ', ' : ''}${who}, ${r.subject || t('Sin asunto')}, ${formatDate(r.date, lang, true)}${r.hasAttachments ? ', ' + t('Con adjuntos') : ''}${r.threadCount > 1 ? ', ' + r.threadCount + ' ' + t('mensajes') : ''}`}>
         <div className="line">
           <span className="from">{who}</span>
           {r.threadCount > 1 && <span className="badge" aria-hidden="true"><IconThread />{r.threadCount}</span>}

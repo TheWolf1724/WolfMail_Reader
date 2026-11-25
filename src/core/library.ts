@@ -42,7 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_msg_thread ON messages (thread_id, date);
 CREATE INDEX IF NOT EXISTS idx_msg_mid ON messages (message_id);
 CREATE INDEX IF NOT EXISTS idx_msg_subj ON messages (subject_norm);
 CREATE TABLE IF NOT EXISTS msg_refs (
-  message_id TEXT NOT NULL, thread_id TEXT NOT NULL, PRIMARY KEY (message_id, thread_id)
+  source_id INTEGER NOT NULL, message_id TEXT NOT NULL, thread_id TEXT NOT NULL, PRIMARY KEY (source_id, message_id, thread_id)
 );
 CREATE INDEX IF NOT EXISTS idx_refs_mid ON msg_refs (message_id);
 CREATE TABLE IF NOT EXISTS attachments (
@@ -119,6 +119,12 @@ export class Library {
       .prepare('SELECT DISTINCT a.hash FROM attachments a JOIN messages m ON m.id = a.message_id WHERE m.source_id = ?')
       .all(id) as Row[]
     this.db.prepare('DELETE FROM messages_fts WHERE rowid IN (SELECT id FROM messages WHERE source_id = ?)').run(id)
+    const src = this.db.prepare('SELECT kind, path FROM sources WHERE id = ?').get(id) as Row | undefined
+    if (src?.kind === 'imap' && String(src.path).startsWith('imap://')) {
+      // Sin esto, volver a sincronizar la cuenta saltaria todo lo ya descargado.
+      this.db.prepare('DELETE FROM meta WHERE key LIKE ?').run(`imap:${String(src.path).slice(7)}:%`)
+    }
+    this.db.prepare('DELETE FROM msg_refs WHERE thread_id IN (SELECT thread_id FROM messages WHERE source_id = ?)').run(id)
     this.db.prepare('DELETE FROM sources WHERE id = ?').run(id)
     this.folderCache.clear()
     // Los blobs huerfanos se limpian en compact().
@@ -212,9 +218,9 @@ export class Library {
     const ids = [...new Set([...(mid ? [mid] : []), ...m.references, ...(m.inReplyTo ? [cleanMessageId(m.inReplyTo)!] : [])].filter(Boolean))]
     let thread: string | null = null
     if (ids.length) {
-      const q = this.db.prepare('SELECT thread_id FROM msg_refs WHERE message_id = ? LIMIT 1')
+      const q = this.db.prepare('SELECT thread_id FROM msg_refs WHERE source_id = ? AND message_id = ? LIMIT 1')
       for (const id of ids) {
-        const r = q.get(id) as Row | undefined
+        const r = q.get(sourceId, id) as Row | undefined
         if (r) { thread = String(r.thread_id); break }
       }
     }
@@ -228,13 +234,25 @@ export class Library {
         if (r) thread = String(r.thread_id)
       }
     }
-    if (!thread) thread = 't' + createHash('sha1').update(mid ?? `${sourceId}|${m.subject}|${m.date}|${Math.random()}`).digest('hex').slice(0, 16)
-    const ins = this.db.prepare('INSERT OR IGNORE INTO msg_refs (message_id, thread_id) VALUES (?,?)')
-    for (const id of ids) ins.run(id, thread)
+    if (!thread) thread = 't' + createHash('sha1').update(`${sourceId}|${mid ?? ''}|${m.subject}|${m.date}|${Math.random()}`).digest('hex').slice(0, 16)
+    const ins = this.db.prepare('INSERT OR IGNORE INTO msg_refs (source_id, message_id, thread_id) VALUES (?,?,?)')
+    for (const id of ids) ins.run(sourceId, id, thread)
     return thread
   }
 
   addMessage(sourceId: number, m: NormalizedMessage): AddResult {
+    this.db.exec('SAVEPOINT msg')
+    try {
+      const r = this.addMessageInner(sourceId, m)
+      this.db.exec('RELEASE msg')
+      return r
+    } catch (e) {
+      this.db.exec('ROLLBACK TO msg; RELEASE msg')
+      throw e
+    }
+  }
+
+  private addMessageInner(sourceId: number, m: NormalizedMessage): AddResult {
     const key = this.dedupKey(m)
     const dup = this.db.prepare('SELECT id FROM messages WHERE source_id = ? AND dedup_key = ?').get(sourceId, key) as Row | undefined
     if (dup) return { status: 'duplicate', id: Number(dup.id) }

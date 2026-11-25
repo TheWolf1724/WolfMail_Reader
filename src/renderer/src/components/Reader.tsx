@@ -12,6 +12,7 @@ interface Props {
   allowRemoteAlways: boolean
   narrow: boolean
   onBack: () => void
+  onRead: (id: number) => void
   onLink: (url: string) => void
   onHeaders: (m: MessageFull) => void
   onNotify: (msg: string) => void
@@ -20,7 +21,7 @@ interface Props {
 
 const fmtAddr = (a: { name: string; email: string }): string => (a.name ? `${a.name} <${a.email}>` : a.email)
 
-export function Reader({ row, lang, fontScale, allowRemoteAlways, narrow, onBack, onLink, onHeaders, onNotify, onAskOpen }: Props): JSX.Element {
+export function Reader({ row, lang, fontScale, allowRemoteAlways, narrow, onBack, onRead, onLink, onHeaders, onNotify, onAskOpen }: Props): JSX.Element {
   const t = useT()
   const [thread, setThread] = useState<MessageFull[]>([])
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
@@ -40,7 +41,7 @@ export function Reader({ row, lang, fontScale, allowRemoteAlways, narrow, onBack
       setExpanded(open)
       setRemoteOk(new Set())
       setBlocked(new Set())
-      if (row.unread) void window.wolf.markRead(row.id, true)
+      if (row.unread) { void window.wolf.markRead(row.id, true); onRead(row.id) }
     })
     return () => { cancelled = true }
   }, [row?.id, row?.threadId]) // eslint-disable-line react-hooks/exhaustive-deps

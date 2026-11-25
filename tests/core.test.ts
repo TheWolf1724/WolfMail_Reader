@@ -219,3 +219,27 @@ describe('fechas', () => {
     expect(headerDate('Date: Tue, 03 Mar 2020\r\n 11:00:00 +0100')).toBe(Date.UTC(2020, 2, 3, 10))
   })
 })
+
+describe('consultas negadas y limpieza (revision)', () => {
+  it('-de: excluye y -"frase" se tokeniza', async () => {
+    const d = join(dir, 'in'); mkdirSync(d)
+    writeFileSync(join(d, '1.eml'), eml('1@x', 'Uno', '', 'foo bar baz'))
+    writeFileSync(join(d, '2.eml'), eml('2@x', 'Dos', '', 'otra cosa').replace('Ana Perez <ana@example.com>', 'Pepe <pepe@example.com>'))
+    await importPaths(lib, [d])
+    expect(lib.count({})).toBe(2)
+    expect(lib.count({ query: 'de:pepe' })).toBe(1)
+    expect(lib.count({ query: '-de:ana' })).toBe(1)
+    expect(lib.count({ query: 'cosa -"foo bar"' })).toBe(1)
+    expect(lib.count({ query: '-"foo bar"' })).toBe(1)
+    expect(tokenize('-"foo bar"')).toEqual(['-"foo bar"'])
+    expect(lib.count({ query: '... foo' })).toBe(1)
+  })
+  it('hilos no se mezclan entre origenes', async () => {
+    const a = join(dir, 'a.eml'), b = join(dir, 'b.eml')
+    writeFileSync(a, eml('same@x', 'Hola')); writeFileSync(b, eml('same@x', 'Hola'))
+    await importPaths(lib, [a]); await importPaths(lib, [b])
+    const rows = lib.list({ grouped: true }, 0, 10)
+    expect(rows).toHaveLength(2)
+    expect(rows.every((r) => r.threadCount === 1)).toBe(true)
+  })
+})

@@ -3,7 +3,7 @@ import {
   app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, session, shell, utilityProcess,
   type MenuItemConstructorOptions, type UtilityProcess
 } from 'electron'
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import MailComposer from 'nodemailer/lib/mail-composer'
@@ -32,6 +32,7 @@ function resolveDataDir(): { dir: string; portable: boolean } {
   return { dir: join(app.getPath('userData'), 'datos'), portable: false }
 }
 
+const SAFE_OPEN = new Set(['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'txt', 'csv', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'odt', 'ods', 'odp', 'rtf', 'zip', 'mp3', 'mp4', 'wav'])
 const DANGEROUS = new Set([
   'exe', 'bat', 'cmd', 'com', 'scr', 'msi', 'msp', 'js', 'jse', 'vbs', 'vbe', 'wsf', 'wsh', 'ps1', 'psm1', 'lnk', 'jar',
   'sh', 'bash', 'app', 'appimage', 'desktop', 'reg', 'hta', 'cpl', 'dll', 'pif', 'msc', 'apk', 'deb', 'rpm', 'run',
@@ -47,6 +48,7 @@ let worker: UtilityProcess | null = null
 let nextJob = 1
 let activeJob = 0
 const pendingOpen: string[] = []
+const openDirs: string[] = []
 
 const send = (channel: string, payload?: unknown): void => {
   if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
@@ -80,13 +82,15 @@ function present(m: MessageFull): MessageFull {
   if (!m.html) return m
   const byCid = new Map(m.attachments.filter((a) => a.cid).map((a) => [a.cid!.toLowerCase(), a.id]))
   const html = m.html.replace(/\bcid:([^"'\s)>]+)/gi, (full, cid: string) => {
-    const id = byCid.get(decodeURIComponent(cid).toLowerCase().replace(/^<|>$/g, ''))
+    let key = cid
+    try { key = decodeURIComponent(cid) } catch { /* cid mal codificado: se usa tal cual */ }
+    const id = byCid.get(key.toLowerCase().replace(/^<|>$/g, ''))
     return id ? `${SCHEME}://a/${id}` : full
   })
   return { ...m, html }
 }
 
-const safeName = (n: string): string => n.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 150) || 'adjunto'
+const safeName = (n: string): string => n.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/[\s.]+$/, '').slice(0, 150) || 'adjunto'
 
 // ---------- Importacion y sincronizacion en proceso aparte ----------
 function ensureWorker(): UtilityProcess {
@@ -191,7 +195,9 @@ function buildMenu(): void {
 // ---------- IPC ----------
 function handle(channel: string, fn: (...args: unknown[]) => unknown | Promise<unknown>): void {
   ipcMain.handle(channel, async (event, ...args) => {
-    if (event.senderFrame?.url && !/^(file:|http:\/\/localhost)/.test(event.senderFrame.url)) throw new Error('Origen no permitido')
+    const u = event.senderFrame?.url ?? ''
+    const ok = u.startsWith('file://') || (isDev && /^http:\/\/localhost:\d+\//.test(u))
+    if (!ok) throw new Error('Origen no permitido')
     return fn(...args)
   })
 }
@@ -239,10 +245,11 @@ function registerIpc(): void {
   handle('openAttachment', async (id) => {
     const a = lib.readAttachment(int(id, 'id'))
     if (!a) return 'error'
-    const ext = extname(a.info.name).slice(1).toLowerCase()
-    if (DANGEROUS.has(ext) || !ext) return 'blocked'
-    const dir = join(app.getPath('temp'), 'wolfmail-abrir')
-    mkdirSync(dir, { recursive: true })
+    const ext = extname(a.info.name.replace(/[\s.]+$/, '')).slice(1).toLowerCase()
+    // Lista blanca: html, svg, macros y cualquier formato desconocido solo se pueden guardar.
+    if (DANGEROUS.has(ext) || !SAFE_OPEN.has(ext)) return 'blocked'
+    const dir = mkdtempSync(join(app.getPath('temp'), 'wolfmail-abrir-'))
+    openDirs.push(dir)
     const file = join(dir, `${a.info.id}-${safeName(a.info.name)}`)
     writeFileSync(file, a.data, { mode: 0o600 })
     return (await shell.openPath(file)) === '' ? 'opened' : 'error'
@@ -381,7 +388,7 @@ else {
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false))
     session.defaultSession.setPermissionCheckHandler(() => false)
 
-    protocol.handle(SCHEME, (req) => {
+    const attHandler = (req: Request): Response => {
       const m = ATT_URL.exec(req.url)
       if (!m) return new Response('No encontrado', { status: 404 })
       const a = lib.readAttachment(Number(m[1]))
@@ -389,7 +396,9 @@ else {
       return new Response(new Uint8Array(a.data), {
         headers: { 'Content-Type': a.info.mime, 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "sandbox; default-src 'none'" }
       })
-    })
+    }
+    protocol.handle(SCHEME, attHandler)
+    session.fromPartition('pdf-export').protocol.handle(SCHEME, attHandler)
 
     registerIpc()
     buildMenu()
@@ -400,7 +409,7 @@ else {
   app.on('window-all-closed', () => app.quit())
   app.on('before-quit', () => {
     worker?.kill()
-    try { rmSync(join(app.getPath('temp'), 'wolfmail-abrir'), { recursive: true, force: true }) } catch { /* nada */ }
+    for (const d of openDirs) { try { rmSync(d, { recursive: true, force: true }) } catch { /* nada */ } }
     try { lib?.close() } catch { /* nada */ }
   })
 }

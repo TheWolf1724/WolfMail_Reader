@@ -27,7 +27,7 @@ Descargue desde la página de versiones:
 | Sistema | Instalable | Portable |
 | --- | --- | --- |
 | Windows 10/11 (64 bits) | `WolfMail-X.Y.Z-windows-setup.exe` | `WolfMail-X.Y.Z-windows-portable.exe` |
-| Linux (64 bits) | `WolfMail-X.Y.Z-linux-x64.deb` | `WolfMail-X.Y.Z-linux-portable.AppImage` |
+| Linux (64 bits) | `WolfMail-X.Y.Z-linux-amd64.deb` | `WolfMail-X.Y.Z-linux-portable.AppImage` |
 
 **Modo portable:** guarda sus datos junto al ejecutable, en la carpeta `WolfMailData`. En la versión instalada, los datos van al perfil del usuario. También se activa creando un archivo `portable.flag` junto al programa o arrancando con `--portable`.
 
