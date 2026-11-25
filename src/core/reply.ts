@@ -70,12 +70,19 @@ export interface ReplyResult {
   truncated: boolean
 }
 
+type HeadOpts = { mode: 'reply' | 'forward'; who: string; date: number | null; subject: string; to: string }
+
+/** Cabecera de la cita: "El ... escribió:" o el bloque de mensaje reenviado. */
+export function quoteHead(o: HeadOpts): string {
+  return o.mode === 'forward'
+    ? `---------- Mensaje reenviado ----------\nDe: ${o.who}\nFecha: ${replyDate(o.date)}\nAsunto: ${o.subject}\nPara: ${o.to}\n`
+    : `El ${replyDate(o.date)}, ${o.who} escribió:`
+}
+
 export function replyBody(opts: { mode: 'reply' | 'forward'; text: string; who: string; date: number | null; subject: string; to: string; max: number }): ReplyResult {
   const { mode, who, date, subject, max } = opts
   const clean = unwrap(cleanBodyText(opts.text))
-  const head = mode === 'forward'
-    ? `\n\n---------- Mensaje reenviado ----------\nDe: ${who}\nFecha: ${replyDate(date)}\nAsunto: ${subject}\nPara: ${opts.to}\n\n`
-    : `\n\nEl ${replyDate(date)}, ${who} escribió:\n`
+  const head = '\n\n' + quoteHead({ mode, who, date, subject, to: opts.to }) + '\n' + (mode === 'forward' ? '\n' : '')
   const content = mode === 'forward' ? clean : clean.split('\n').map((l) => (l ? '> ' + l : '>')).join('\n')
   const room = max - encodeURIComponent(head).length
   const limited = limitLines(content, room)

@@ -1,6 +1,6 @@
 /// <reference types="electron-vite/node" />
 import {
-  app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, session, shell, utilityProcess,
+  app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, Menu, nativeTheme, protocol, session, shell, utilityProcess,
   type MenuItemConstructorOptions, type UtilityProcess
 } from 'electron'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto'
 import MailComposer from 'nodemailer/lib/mail-composer'
 import workerPath from './worker?modulePath'
 import { Library } from '../core/library'
-import { replyBody } from '../core/reply'
+import { quoteHead, replyBody } from '../core/reply'
 import { PROVIDERS, refreshToken } from '../core/oauth'
 import type { ImapAccount } from '../core/imap'
 import type { ImportProgress, ListFilter, MessageFull, Settings } from '../core/types'
@@ -271,6 +271,7 @@ function registerIpc(): void {
     return true
   })
   handle('exportPdf', (id) => exportPdf(int(id, 'id')))
+  handle('openReply', (html, text) => openReply(html, text))
   handle('printMessage', (id) => printMessage(int(id, 'id')))
   handle('replyMessage', (id, mode) => {
     if (mode !== 'reply' && mode !== 'all' && mode !== 'forward') throw new Error('Modo no valido')
@@ -306,6 +307,7 @@ function registerIpc(): void {
     if (p.density === 'comfortable' || p.density === 'compact') clean.density = p.density
     if (typeof p.grouped === 'boolean') clean.grouped = p.grouped
     if (p.loadRemoteImages === 'never' || p.loadRemoteImages === 'ask') clean.loadRemoteImages = p.loadRemoteImages
+    if (p.replyQuote === 'rich' || p.replyQuote === 'text') clean.replyQuote = p.replyQuote
     if (p.readingPane === 'right' || p.readingPane === 'bottom') clean.readingPane = p.readingPane
     const s = store.setSettings(clean)
     nativeTheme.themeSource = s.theme
@@ -421,9 +423,46 @@ async function printMessage(id: number): Promise<'printed' | 'cancelled' | 'view
 }
 
 /** Responde o reenvia abriendo el cliente de correo del sistema (mailto:). WolfMail no envia correo. */
+/** HTML del mensaje con las imagenes incrustadas (cid:) convertidas a data: para poder pegarlo en otro programa. */
+function inlineImages(m: MessageFull): string | null {
+  if (!m.html) return null
+  const byCid = new Map(m.attachments.filter((a) => a.cid).map((a) => [a.cid!.toLowerCase(), a.id]))
+  let budget = 8 * 1024 * 1024
+  return m.html.replace(/\bcid:([^"'\s)>]+)/gi, (full, cid: string) => {
+    let key = cid
+    try { key = decodeURIComponent(cid) } catch { /* se usa tal cual */ }
+    const id = byCid.get(key.toLowerCase().replace(/^<|>$/g, ''))
+    const a = id ? lib.readAttachment(id) : null
+    if (!a || !/^image\/(png|jpe?g|gif|webp|bmp)$/i.test(a.info.mime) || a.data.byteLength > budget) return full
+    budget -= a.data.byteLength
+    return `data:${a.info.mime};base64,${Buffer.from(a.data).toString('base64')}`
+  })
+}
+
+let pendingMailto: string | null = null
+
+/** Segundo paso: deja la cita en el portapapeles (antes de que el programa de correo robe el foco) y abre el borrador. */
+async function openReply(html: unknown, text: unknown): Promise<boolean> {
+  const url = pendingMailto
+  pendingMailto = null
+  if (!url) return false
+  if (typeof text === 'string' && text.length < 20_000_000) {
+    const items: Record<string, Blob> = { 'text/plain': new Blob([text], { type: 'text/plain' }) }
+    if (typeof html === 'string' && html.length < 20_000_000) items['text/html'] = new Blob([html], { type: 'text/html' })
+    try { await clipboard.write([new ClipboardItem(items)]) } catch { try { clipboard.writeText(text) } catch { /* sin portapapeles */ } }
+  }
+  // Pruebas automaticas: nunca se abre el programa de correo; la cita se vuelca a un fichero.
+  if (process.env.WOLFMAIL_NO_OPEN) {
+    writeFileSync(process.env.WOLFMAIL_NO_OPEN, JSON.stringify({ url, html, text }))
+    return true
+  }
+  try { await shell.openExternal(url) } catch { return false }
+  return true
+}
+
 async function replyMessage(id: number, mode: 'reply' | 'all' | 'forward'): Promise<ReplyOutcome> {
   const m = lib.getMessage(id)
-  if (!m) return { ok: false, truncated: false, full: '' }
+  if (!m) return { ok: false, truncated: false, full: '', rich: false, intro: '', html: null }
   const own = new Set(store.accounts.map((a) => (a.user ?? '').toLowerCase()).filter(Boolean))
   const seen = new Set<string>()
   const pick = (l: { name: string; email: string }[]): string[] => l.filter((x) => {
@@ -446,10 +485,15 @@ async function replyMessage(id: number, mode: 'reply' | 'all' | 'forward'): Prom
   const who = m.fromName ? `${m.fromName} <${m.fromEmail}>` : m.fromEmail
   // Algunos clientes (Windows) rechazan mailto largos: el citado se recorta en un limite de linea.
   const r = replyBody({ mode: mode === 'forward' ? 'forward' : 'reply', text: m.text, who, date: m.date, subject: m.subject, to: m.to.map((x) => x.email).join(', '), max: process.platform === 'win32' ? 1900 : 8000 })
-  const q = [`subject=${encodeURIComponent(subject)}`, `body=${encodeURIComponent(r.body)}`]
+  const rich = store.settings.replyQuote !== 'text'
+  const hd = { mode: mode === 'forward' ? 'forward' as const : 'reply' as const, who, date: m.date, subject: m.subject, to: m.to.map((x) => x.email).join(', ') }
+  const q = [`subject=${encodeURIComponent(subject)}`]
+  if (!rich) q.push(`body=${encodeURIComponent(r.body)}`)
   if (cc.length) q.push(`cc=${encodeURIComponent(cc.join(','))}`)
-  try { await shell.openExternal(`mailto:${to.map(encodeURIComponent).join(',')}?${q.join('&')}`) } catch { return { ok: false, truncated: false, full: '' } }
-  return { ok: true, truncated: r.truncated, full: r.full }
+  pendingMailto = `mailto:${to.map(encodeURIComponent).join(',')}?${q.join('&')}`
+  return rich
+    ? { ok: true, truncated: false, full: replyBody({ ...hd, text: m.text, max: 1e9 }).full, rich: true, intro: quoteHead(hd), html: inlineImages(m) }
+    : { ok: true, truncated: r.truncated, full: r.full, rich: false, intro: '', html: null }
 }
 
 // ---------- Arranque ----------

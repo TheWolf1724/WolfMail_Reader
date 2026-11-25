@@ -29,7 +29,15 @@ export interface AppInfo {
 
 /** API expuesta a la interfaz por el preload. Todo lo que cruza el puente esta aqui. */
 /** Resultado de abrir el programa de correo: si el texto no cupo en el enlace, `full` lleva el texto completo. */
-export interface ReplyOutcome { ok: boolean; truncated: boolean; full: string }
+export interface ReplyOutcome {
+  ok: boolean
+  truncated: boolean
+  full: string
+  /** Modo con formato: el cuerpo del enlace va vacio y la cita (HTML) se entrega para el portapapeles. */
+  rich: boolean
+  intro: string
+  html: string | null
+}
 
 export interface WolfApi {
   appInfo(): Promise<AppInfo>
@@ -57,6 +65,8 @@ export interface WolfApi {
   openAttachment(id: number): Promise<'opened' | 'blocked' | 'error'>
   openExternal(url: string): Promise<boolean>
   exportPdf(messageId: number): Promise<string | null>
+  /** Segundo paso de responder/reenviar: copia la cita al portapapeles y abre el programa de correo. */
+  openReply(html: string | null, text: string): Promise<boolean>
   printMessage(messageId: number): Promise<'printed' | 'cancelled' | 'viewer' | 'error'>
   replyMessage(messageId: number, mode: 'reply' | 'all' | 'forward'): Promise<ReplyOutcome>
   saveSource(messageId: number): Promise<string | null>
@@ -76,7 +86,7 @@ export interface WolfApi {
 export const CHANNELS = [
   'appInfo', 'stats', 'listSources', 'listFolders', 'count', 'list', 'getMessage', 'getThread', 'markRead',
   'removeSource', 'pickFiles', 'pickFolder', 'startImport', 'cancelJob', 'saveAttachment', 'openAttachment',
-  'openExternal', 'exportPdf', 'printMessage', 'replyMessage', 'saveSource', 'getSettings', 'setSettings', 'systemPrefersDark', 'listAccounts',
+  'openExternal', 'exportPdf', 'printMessage', 'replyMessage', 'openReply', 'saveSource', 'getSettings', 'setSettings', 'systemPrefersDark', 'listAccounts',
   'addPasswordAccount', 'startOAuth', 'removeAccount', 'syncAccount'
 ] as const
 export type Channel = (typeof CHANNELS)[number]

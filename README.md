@@ -40,7 +40,7 @@ Linux, AppImage: `chmod +x WolfMail-*.AppImage && ./WolfMail-*.AppImage`. Si da 
 3. Busque con `Ctrl+F` o `/`. Pulse `F1` para ver todos los atajos.
 
 ## Imprimir y responder
-WolfMail es un **lector**, no un buzón: no envía correo. Desde cualquier mensaje puede **imprimirlo** (Ctrl+P; en Linux abre un PDF en el visor para imprimir desde allí), **exportarlo a PDF** o **guardarlo como .eml**. **Responder** (Ctrl+R), **responder a todos** (Ctrl+Mayús+R) y **reenviar** (Ctrl+Mayús+F) abren su programa de correo habitual con destinatarios, asunto y texto citado ya preparados.
+WolfMail es un **lector**, no un buzón: no envía correo. Desde cualquier mensaje puede **imprimirlo** (Ctrl+P; en Linux abre un PDF en el visor para imprimir desde allí), **exportarlo a PDF** o **guardarlo como .eml**. **Responder** (Ctrl+R), **responder a todos** (Ctrl+Mayús+R) y **reenviar** (Ctrl+Mayús+F) abren su programa de correo habitual con destinatarios y asunto preparados. El mensaje original, con su formato e imágenes incrustadas, queda copiado en el portapapeles: péguelo con Ctrl+V en el cuerpo (en Ajustes puede elegir citar solo texto plano).
 
 ## Seguridad y privacidad
 

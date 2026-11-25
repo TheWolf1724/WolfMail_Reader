@@ -53,6 +53,9 @@ export function SettingsDialog({ settings, onChange, onClose }: { settings: Sett
       <div className="field"><span className="label">{t('Imágenes remotas')}</span>
         <Radio name="img" value={settings.loadRemoteImages} onChange={(loadRemoteImages) => onChange({ loadRemoteImages })} options={[['ask', t('Preguntar en cada mensaje')], ['never', t('Nunca')]]} />
         <span className="hint">{t('Las imágenes remotas permiten al remitente saber que ha abierto el mensaje.')}</span></div>
+      <div className="field"><span className="label">{t('Cita al responder')}</span>
+        <Radio name="rq" value={settings.replyQuote} onChange={(replyQuote) => onChange({ replyQuote })} options={[['rich', t('Con formato (pegar con Ctrl+V)')], ['text', t('Solo texto (dentro del enlace)')]]} />
+        <span className="hint">{t('Al responder se copia el mensaje con su formato y se pega en la redacción. El texto plano pierde negritas, tablas e imágenes.')}</span></div>
     </Dialog>
   )
 }

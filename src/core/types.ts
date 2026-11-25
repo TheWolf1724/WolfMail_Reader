@@ -125,6 +125,8 @@ export interface Settings {
   grouped: boolean
   loadRemoteImages: 'never' | 'ask'
   readingPane: 'right' | 'bottom'
+  /** 'rich': cita con formato por el portapapeles; 'text': texto plano dentro del enlace mailto. */
+  replyQuote: 'rich' | 'text'
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -134,5 +136,6 @@ export const DEFAULT_SETTINGS: Settings = {
   density: 'comfortable',
   grouped: true,
   loadRemoteImages: 'ask',
-  readingPane: 'right'
+  readingPane: 'right',
+  replyQuote: 'rich'
 }

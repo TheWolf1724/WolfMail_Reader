@@ -1,5 +1,10 @@
 # Registro de cambios
 
+## 0.4.0 - 2026-11-25
+- Responder y reenviar citan el mensaje con su formato original (negritas, tablas, firmas con logo e imagenes incrustadas): se copia al portapapeles como HTML y se pega con Ctrl+V en la redaccion. Nunca se incluyen imagenes remotas. El enlace mailto solo lleva destinatarios y asunto.
+- Ajuste "Cita al responder": con formato (por defecto) o solo texto dentro del enlace.
+- WolfMail no envia correo en ningun caso: solo abre un borrador en su programa de correo. Variable de pruebas WOLFMAIL_NO_OPEN para que las pruebas automaticas no abran nada.
+
 ## 0.3.3 - 2026-11-25
 - Responder y reenviar citan el mensaje completo (con su historial), limpio de [image:] y enlaces sueltos y con las lineas partidas del texto plano re-unidas. Limite del enlace: 8000 caracteres (1900 en Windows). Si el mensaje no cabe, se copia el texto completo al portapapeles para pegarlo con Ctrl+V.
 
