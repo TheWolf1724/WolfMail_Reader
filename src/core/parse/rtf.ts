@@ -14,8 +14,10 @@ export function rtfFromCompressed(data: Uint8Array | number[]): string | null {
 // Grupos de RTF que no son texto del mensaje (fuentes, colores, estilos, imagenes...).
 const SKIP_GROUPS = /^\\(fonttbl|colortbl|stylesheet|info|pict|object|latentstyles|listtable|listoverridetable|rsidtbl|generator|themedata|datastore|xmlnstbl|mmathPr|header|footer|fldinst)\b/
 
+const WIN1252 = new TextDecoder('windows-1252')
+
 function decodeWin1252Byte(b: number): string {
-  return Buffer.from([b]).toString('latin1')
+  return Number.isNaN(b) ? '' : WIN1252.decode(Uint8Array.of(b))
 }
 
 /** Convierte RTF a texto plano o, si lleva HTML encapsulado (\fromhtml), a HTML. */
@@ -25,6 +27,7 @@ export function rtfToContent(rtf: string): { text: string; html: string | null }
   const stack: { skip: boolean; htmlrtf: boolean }[] = []
   let skip = false
   let htmlrtf = false
+  let uc = 1
   let i = 0
   const n = rtf.length
   while (i < n) {
@@ -64,13 +67,18 @@ export function rtfToContent(rtf: string): { text: string; html: string | null }
       const word = m[1]
       const arg = m[2] === undefined ? null : parseInt(m[2], 10)
       i += m[0].length
-      if (word === 'htmlrtf') htmlrtf = arg !== 0
+      if (word === 'uc' && arg !== null) uc = Math.max(0, arg)
+      else if (word === 'htmlrtf') htmlrtf = arg !== 0
       else if (!skip && !(fromHtml && htmlrtf)) {
         if (word === 'par' || word === 'line') out.push(fromHtml ? '' : '\n')
         else if (word === 'tab') out.push(fromHtml ? '' : '\t')
         else if (word === 'u' && arg !== null) {
           out.push(String.fromCodePoint(arg < 0 ? arg + 65536 : arg))
-          if (rtf[i] === '?') i++
+          // \ucN: tras \u se descartan N caracteres de respaldo (por defecto 1).
+          for (let k = 0; k < uc; k++) {
+            if (rtf.startsWith("\\'", i)) i += 4
+            else if (i < rtf.length && rtf[i] !== '\\' && rtf[i] !== '{' && rtf[i] !== '}') i++
+          }
         }
       }
       continue

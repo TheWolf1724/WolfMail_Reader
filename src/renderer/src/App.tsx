@@ -69,7 +69,7 @@ export function App(): JSX.Element {
       window.wolf.onDataChanged(() => void reload()),
       window.wolf.onProgress((p) => setJob(p)),
       window.wolf.onOpenPaths((p) => void startImport(p)),
-      window.wolf.onMenu((a) => menuAction(a))
+      window.wolf.onMenu((a) => menuRef.current(a))
     ]
     return () => offs.forEach((o) => o())
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,7 +102,8 @@ export function App(): JSX.Element {
     unreadOnly: unreadOnly || undefined, withAttachments: withAtt || undefined, sort, grouped: settings.grouped
   }), [scope, query, unreadOnly, withAtt, sort, settings.grouped])
 
-  const notify = useCallback((m: string) => { setToast(m); setTimeout(() => setToast(''), 5000) }, [])
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const notify = useCallback((m: string) => { setToast(m); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(''), 5000) }, [])
 
   const patchSettings = (p: Partial<Settings>): void => {
     setSettings((s) => ({ ...s, ...p }))
@@ -118,6 +119,7 @@ export function App(): JSX.Element {
     } catch (e) { notify((e as Error).message) }
   }, [notify])
 
+  const menuRef = useRef<(a: string) => void>(() => undefined)
   const menuAction = (a: string): void => {
     if (a === 'open-files') void window.wolf.pickFiles().then((p) => startImport(p))
     else if (a === 'open-folder') void window.wolf.pickFolder().then((p) => { if (p) void startImport([p]) })
@@ -129,6 +131,8 @@ export function App(): JSX.Element {
     else if (selected && a === 'print') void printMsg(selected.id, t, notify)
     else if (selected && (a === 'reply' || a === 'reply-all' || a === 'forward')) void replyMsg(selected.id, a === 'reply-all' ? 'all' : a, t, notify)
   }
+
+  menuRef.current = menuAction
 
   const finished = job && (job.phase === 'terminado' || job.phase === 'error' || job.phase === 'cancelado')
   const running = job && !finished
@@ -270,7 +274,7 @@ export function App(): JSX.Element {
             {!narrow && <div className={'splitter' + (bottom ? ' h' : '')} role="separator" aria-orientation={bottom ? 'horizontal' : 'vertical'} aria-label={t('Tamaño de la lista')}
               aria-valuenow={bottom ? widths.listH : widths.list} tabIndex={0} onPointerDown={(e) => startDrag(bottom ? 'listH' : 'list', e)} onKeyDown={splitKey(bottom ? 'listH' : 'list')} />}
             <main className="pane reader-pane" aria-label={t('Lectura del mensaje')}>
-              <Reader row={selected} lang={lang} fontScale={settings.fontScale} allowRemoteAlways={false} narrow={narrow}
+              <Reader row={selected} lang={lang} fontScale={settings.fontScale} allowRemoteAlways={false} neverRemote={settings.loadRemoteImages === 'never'} narrow={narrow}
                 onRead={(id) => setReadIds((s) => new Set(s).add(id))} onBack={() => setReadMode(false)} onLink={askLink} onHeaders={(m) => setModal({ kind: 'headers', m })}
                 onNotify={notify} onAskOpen={(a) => setModal({ kind: 'attachment', a })} />
             </main>

@@ -14,11 +14,13 @@ interface Props {
 // El cuerpo del correo se limpia con DOMPurify y se muestra en un iframe aislado:
 // sin scripts, sin formularios y con una politica de contenido que bloquea la red salvo permiso.
 const FORBID_TAGS = ['script', 'iframe', 'frame', 'frameset', 'object', 'embed', 'form', 'input', 'button', 'select', 'textarea', 'meta', 'link', 'base', 'applet', 'audio', 'video', 'source', 'track', 'dialog']
-const REMOTE = /(?:src|background|poster|href)\s*=\s*["']?\s*https?:|url\(\s*["']?\s*(?:https?:)?\/\/|@import/i
+const REMOTE = /(?:src|srcset|background|poster|href|xlink:href)\s*=\s*["']?\s*(?:https?:)?\/\/|url\(\s*["']?\s*(?:https?:)?\/\/|@import/i
 
 export function sanitizeEmailHtml(html: string): string {
   return DOMPurify.sanitize(html, {
     FORBID_TAGS, FORBID_ATTR: ['srcdoc', 'formaction', 'ping'],
+    // Valor por defecto de DOMPurify mas el esquema interno de imagenes incrustadas (cid:).
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|wolfmail-att):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
     ALLOW_DATA_ATTR: false, WHOLE_DOCUMENT: false, RETURN_TRUSTED_TYPE: false
   }) as string
 }
@@ -87,6 +89,7 @@ img{max-width:100%;height:auto}table{max-width:100%}a{color:#0b5cad}blockquote{m
       })
     }
     f.addEventListener('load', onLoad)
+    if (f.contentDocument?.readyState === 'complete' && f.contentDocument.body?.innerHTML) onLoad()
     return () => { f.removeEventListener('load', onLoad); ro?.disconnect() }
   }, [clean, doc, onLink])
 

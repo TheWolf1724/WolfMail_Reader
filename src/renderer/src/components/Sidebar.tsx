@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FolderInfo, SourceInfo } from '../../../core/types'
 import { IconChevron, IconFile, IconFolder, IconMail, IconTrash } from './Icons'
 import { useT } from '../i18n'
@@ -18,6 +18,14 @@ interface Props {
 export function Sidebar({ sources, folders, scope, totalMessages, onSelect, onRemove, onLoadFolders }: Props): JSX.Element {
   const t = useT()
   const [open, setOpen] = useState<Set<number>>(new Set(sources.map((s) => s.id)))
+  // Los origenes nuevos aparecen desplegados; lo que el usuario pliega despues se respeta.
+  const seen = useRef<Set<number>>(new Set(sources.map((s) => s.id)))
+  useEffect(() => {
+    const fresh = sources.filter((s) => !seen.current.has(s.id))
+    if (!fresh.length) return
+    fresh.forEach((s) => seen.current.add(s.id))
+    setOpen((o) => new Set([...o, ...fresh.map((s) => s.id)]))
+  }, [sources])
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
 
   const toggle = (id: number): void => {
@@ -51,7 +59,7 @@ export function Sidebar({ sources, folders, scope, totalMessages, onSelect, onRe
         items[n].focus()
       }}>
         <li role="none">
-          <div role="treeitem" aria-selected={!scope.sourceId} aria-level={1} tabIndex={!scope.sourceId ? 0 : -1} className="tree-item"
+          <div role="treeitem" aria-selected={!scope.sourceId} aria-level={1} tabIndex={!scope.sourceId || (!!scope.folderId && !open.has(scope.sourceId)) ? 0 : -1} className="tree-item"
             onClick={() => onSelect({})} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect({}) } }}>
             <IconMail /><span className="name">{t('Todos los correos')}</span><span className="count">{totalMessages.toLocaleString()}</span>
           </div>

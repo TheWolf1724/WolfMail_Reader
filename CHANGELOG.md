@@ -1,5 +1,14 @@
 # Registro de cambios
 
+## 0.3.0 - 2026-11-25
+- Barra de acciones fija sobre el lector: Responder, Responder a todos, Reenviar e Imprimir.
+- Atajos Ctrl+P / Ctrl+R / Ctrl+Mayus+R / Ctrl+Mayus+F funcionando desde el menu.
+- Corregido: las imagenes incrustadas (firmas, logos) no se veian; la deteccion de imagenes remotas era incompleta; el ajuste "Imagenes remotas: nunca" no se aplicaba.
+- Seguridad: la ventana de impresion/PDF no puede navegar ni usar red; se quitan .doc/.xls/.ppt de la lista de adjuntos que se abren directamente; se borran temporales de sesiones anteriores.
+- Imprimir/PDF funciona con correos HTML grandes; responder no falla con emojis ni sin programa de correo; responder a un mensaje propio va a sus destinatarios.
+- No se puede quitar un origen durante una importacion; IMAP reintenta los mensajes que no se pudieron leer; la importacion limita la memoria con adjuntos grandes.
+- RTF: comillas curvas, euro y \uc correctos. Menu Edicion con deshacer, cortar y pegar. Arbol de carpetas desplegado y accesible por teclado. Avisos que no se pisan.
+
 ## 0.2.0 - 2026-11-25
 - Imprimir el mensaje (Ctrl+P): dialogo del sistema en Windows; en Linux abre un PDF en el visor para imprimir desde alli.
 - Responder (Ctrl+R), responder a todos (Ctrl+Mayus+R) y reenviar (Ctrl+Mayus+F): abren el programa de correo del sistema con destinatarios, asunto y texto citado. WolfMail sigue siendo solo lector y no envia correo.

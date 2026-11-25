@@ -69,6 +69,7 @@ export function MessageList({ filter, version, lang, selectedId, onSelect, onOpe
     void window.wolf.count(filter).then((n) => {
       if (my !== epoch.current) return
       setTotal(n)
+      setActive((a) => Math.max(0, Math.min(a, n - 1)))
       onTotal(n)
       bump((x) => x + 1)
     }).catch(() => undefined)

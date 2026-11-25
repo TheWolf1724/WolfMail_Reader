@@ -55,6 +55,7 @@ const EN: Record<string, string> = {
   'mensaje': 'message',
   'Imprimir / PDF': 'Print / PDF',
   'Imprimir': 'Print',
+  'Acciones del mensaje': 'Message actions',
   'Exportar a PDF': 'Export to PDF',
   'Responder': 'Reply',
   'Responder a todos': 'Reply all',

@@ -11,6 +11,8 @@ export interface ImportOptions {
 }
 
 const BATCH = 100
+/** Tope de bytes de adjuntos acumulados antes de guardar un lote (evita agotar la memoria). */
+const BATCH_BYTES = 48 * 1024 * 1024
 
 function folderFor(file: string, root: string | null, kind: string): string {
   const stem = basename(file, extname(file))
@@ -64,6 +66,7 @@ export async function importPaths(lib: Library, paths: string[], opts: ImportOpt
       if (!kind) { state.failed++; continue }
       const gen = parseFile(file, { defaultFolder: folderFor(file, isDir ? p : null, kind), signal: opts.signal })
       let pending: NormalizedMessage[] = []
+      let pendingBytes = 0
       const flush = (): void => {
         if (!pending.length) return
         state.phase = 'guardando'
@@ -77,13 +80,15 @@ export async function importPaths(lib: Library, paths: string[], opts: ImportOpt
           }
         })
         pending = []
+        pendingBytes = 0
         state.phase = 'leyendo'
       }
       try {
         for await (const m of gen) {
           pending.push(m)
+          pendingBytes += m.attachments.reduce((n, a) => n + a.data.byteLength, 0)
           state.processed++
-          if (pending.length >= BATCH) flush()
+          if (pending.length >= BATCH || pendingBytes >= BATCH_BYTES) flush()
           tick()
           if (opts.signal?.aborted) break
         }

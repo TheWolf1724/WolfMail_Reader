@@ -75,6 +75,7 @@ try {
   await call(`document.querySelector('[role=option]').click()`)
   await app.sleep(1000)
   check('adjunto del .msg visible', await call(`return document.body.innerText.includes('.jpg')`))
+  check('barra de acciones visible', await call(`return !!document.querySelector('.reader-top [role=toolbar] button')`))
   check('botones imprimir y responder visibles', await call(`const t=document.body.innerText; return ['Responder','Responder a todos','Reenviar','Imprimir','Exportar a PDF'].every(x=>t.includes(x))`))
   await app.shot(join(out, '05-msg-oscuro.png'))
 

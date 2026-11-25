@@ -99,6 +99,7 @@ export class Library {
       return r
     } catch (e) {
       this.db.exec('ROLLBACK')
+      this.folderCache.clear()
       throw e
     }
   }
@@ -248,6 +249,7 @@ export class Library {
       return r
     } catch (e) {
       this.db.exec('ROLLBACK TO msg; RELEASE msg')
+      this.folderCache.clear()
       throw e
     }
   }

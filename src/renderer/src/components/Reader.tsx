@@ -11,6 +11,7 @@ interface Props {
   lang: string
   fontScale: number
   allowRemoteAlways: boolean
+  neverRemote?: boolean
   narrow: boolean
   onBack: () => void
   onRead: (id: number) => void
@@ -22,7 +23,7 @@ interface Props {
 
 const fmtAddr = (a: { name: string; email: string }): string => (a.name ? `${a.name} <${a.email}>` : a.email)
 
-export function Reader({ row, lang, fontScale, allowRemoteAlways, narrow, onBack, onRead, onLink, onHeaders, onNotify, onAskOpen }: Props): JSX.Element {
+export function Reader({ row, lang, fontScale, allowRemoteAlways, neverRemote, narrow, onBack, onRead, onLink, onHeaders, onNotify, onAskOpen }: Props): JSX.Element {
   const t = useT()
   const [thread, setThread] = useState<MessageFull[]>([])
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
@@ -59,6 +60,12 @@ export function Reader({ row, lang, fontScale, allowRemoteAlways, narrow, onBack
       <div className="reader-top">
         {narrow && <button className="btn ghost" onClick={onBack}><IconBack />{t('Cerrar')}</button>}
         <h2>{row.subject || t('Sin asunto')}</h2>
+        <div className="toolbar" role="toolbar" aria-label={t('Acciones del mensaje')}>
+          <button className="btn" onClick={() => replyMsg(row.id, 'reply', t, onNotify)} title="Ctrl+R"><IconReply />{t('Responder')}</button>
+          <button className="btn" onClick={() => replyMsg(row.id, 'all', t, onNotify)} title="Ctrl+Mayús+R"><IconReply />{t('Responder a todos')}</button>
+          <button className="btn" onClick={() => replyMsg(row.id, 'forward', t, onNotify)} title="Ctrl+Mayús+F"><IconReply />{t('Reenviar')}</button>
+          <button className="btn" onClick={() => printMsg(row.id, t, onNotify)} title="Ctrl+P"><IconPrint />{t('Imprimir')}</button>
+        </div>
         <div className="meta">{thread.length > 1 ? `${t('Conversación')}: ${thread.length} ${t('mensajes')}` : current?.folderPath ?? ''}</div>
       </div>
       <div className="reader-scroll" role="region" aria-label={t('Lectura del mensaje')} tabIndex={-1} id="reader">
@@ -95,7 +102,7 @@ export function Reader({ row, lang, fontScale, allowRemoteAlways, narrow, onBack
                     <button className="btn" onClick={async () => { const p = await window.wolf.exportPdf(m.id); if (p) onNotify(`${t('Guardado')}: ${p}`) }}><IconSave />{t('Exportar a PDF')}</button>
                     <button className="btn" onClick={async () => { const p = await window.wolf.saveSource(m.id); if (p) onNotify(`${t('Guardado')}: ${p}`) }}><IconSave />{t('Guardar como .eml')}</button>
                   </div>
-                  {blocked.has(m.id) && !remoteOk.has(m.id) && !allowRemoteAlways && (
+                  {blocked.has(m.id) && !remoteOk.has(m.id) && !allowRemoteAlways && !neverRemote && (
                     <div className="banner" role="status">
                       <span>{t('Se han bloqueado las imágenes remotas para proteger su privacidad.')}</span>
                       <button className="btn" onClick={() => setRemoteOk((s) => new Set(s).add(m.id))}>{t('Mostrar en este mensaje')}</button>

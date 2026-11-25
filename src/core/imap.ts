@@ -72,6 +72,8 @@ export async function syncImap(lib: Library, acc: ImapAccount, opts: SyncOptions
         const todo = opts.limitPerFolder ? uids.slice(-opts.limitPerFolder) : uids
         state.file = `${acc.label}: ${box.path}`
         emit()
+        // Si un mensaje no se puede leer, el marcador no pasa de el: se reintentara en la proxima sincronizacion.
+        let stuckAt = 0
         for (let i = 0; i < todo.length; i += BATCH) {
           if (opts.signal?.aborted) break
           const chunk = todo.slice(i, i + BATCH)
@@ -80,7 +82,7 @@ export async function syncImap(lib: Library, acc: ImapAccount, opts: SyncOptions
             try {
               if (!msg.source) continue
               parsed.push(await parseRfc822(msg.source, { defaultFolder: box.path }, { unread: !msg.flags?.has('\\Seen'), folder: box.path }))
-            } catch { state.failed++ }
+            } catch { state.failed++; if (!stuckAt) stuckAt = msg.uid }
             state.processed++
           }
           state.phase = 'guardando'
@@ -94,7 +96,8 @@ export async function syncImap(lib: Library, acc: ImapAccount, opts: SyncOptions
             }
           })
           state.phase = 'leyendo'
-          setMeta(lib, key, { validity, lastUid: chunk[chunk.length - 1] })
+          const upTo = stuckAt ? Math.max(0, stuckAt - 1) : chunk[chunk.length - 1]
+          if (!prev || prev.validity !== validity || upTo > prev.lastUid) setMeta(lib, key, { validity, lastUid: upTo })
           emit()
         }
       } finally {

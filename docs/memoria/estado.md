@@ -7,7 +7,7 @@ metadata:
 
 Ultima actualizacion: 2026-11-25. **RETOMAR** desde "Pendiente".
 
-## Hecho (v0.2.0: imprimir y responder via mailto; repo https://github.com/TheWolf1724/WolfMail_Reader, releases con max. 2 versiones por sistema)
+## Hecho (v0.3.0 barra de acciones y revision de codigo; v0.2.0: imprimir y responder via mailto; repo https://github.com/TheWolf1724/WolfMail_Reader, releases con max. 2 versiones por sistema)
 ## Hecho (v0.1.0)
 - Nucleo probado (vitest): lectores eml/emlx/mbox(Gmail Takeout)/msg(+RTF)/pst/ost, biblioteca SQLite+FTS5, hilos, busqueda con operadores, IMAP de solo lectura, OAuth PKCE. Ver `docs/DISENO.md`.
 - App Electron: 3 paneles, lista virtualizada, conversaciones, tema claro/oscuro, accesibilidad, ajustes, cuentas, importar por arrastre/menu, exportar PDF/.eml.

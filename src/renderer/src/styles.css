@@ -171,6 +171,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .reader-scroll { flex: 1; overflow: auto; padding: 0; }
 .reader-top { padding: 12px 20px 8px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 2; }
 .reader-top h2 { margin: 0 0 6px; font-size: 1.25rem; overflow-wrap: anywhere; }
+.reader-top .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
 .reader-top .meta { color: var(--text-muted); font-size: 0.87rem; }
 .msg-card { border-bottom: 1px solid var(--border); }
 .msg-card > .head {

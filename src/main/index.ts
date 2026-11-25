@@ -3,8 +3,9 @@ import {
   app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, session, shell, utilityProcess,
   type MenuItemConstructorOptions, type UtilityProcess
 } from 'electron'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import MailComposer from 'nodemailer/lib/mail-composer'
 import workerPath from './worker?modulePath'
@@ -32,7 +33,7 @@ function resolveDataDir(): { dir: string; portable: boolean } {
   return { dir: join(app.getPath('userData'), 'datos'), portable: false }
 }
 
-const SAFE_OPEN = new Set(['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'txt', 'csv', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'odt', 'ods', 'odp', 'rtf', 'zip', 'mp3', 'mp4', 'wav'])
+const SAFE_OPEN = new Set(['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'txt', 'csv', 'docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'zip', 'mp3', 'mp4', 'wav'])
 const DANGEROUS = new Set([
   'exe', 'bat', 'cmd', 'com', 'scr', 'msi', 'msp', 'js', 'jse', 'vbs', 'vbe', 'wsf', 'wsh', 'ps1', 'psm1', 'lnk', 'jar',
   'sh', 'bash', 'app', 'appimage', 'desktop', 'reg', 'hta', 'cpl', 'dll', 'pif', 'msc', 'apk', 'deb', 'rpm', 'run',
@@ -179,7 +180,8 @@ function buildMenu(): void {
       { type: 'separator' }, { role: 'quit', label: 'Salir' }
     ] },
     { label: 'Edicion', submenu: [
-      { role: 'copy', label: 'Copiar' }, { role: 'selectAll', label: 'Seleccionar todo' },
+      { role: 'undo', label: 'Deshacer' }, { role: 'redo', label: 'Rehacer' }, { type: 'separator' },
+      { role: 'cut', label: 'Cortar' }, { role: 'copy', label: 'Copiar' }, { role: 'paste', label: 'Pegar' }, { role: 'selectAll', label: 'Seleccionar todo' },
       { label: 'Buscar', accelerator: 'CmdOrCtrl+F', click: action('search') }
     ] },
     { label: 'Ver', submenu: [
@@ -216,7 +218,10 @@ function registerIpc(): void {
   handle('getMessage', (id) => { const m = lib.getMessage(int(id, 'id')); return m ? present(m) : null })
   handle('getThread', (t) => lib.getThread(str(t, 'threadId', 100)).map(present))
   handle('markRead', (id, read) => lib.markRead(int(id, 'id'), read === true))
-  handle('removeSource', (id) => { lib.removeSource(int(id, 'sourceId')); lib.compact(); send('dataChanged') })
+  handle('removeSource', (id) => {
+    if (activeJob) throw new Error('Hay una importacion en curso: espere a que termine o cancelela.')
+    lib.removeSource(int(id, 'sourceId')); lib.compact(); send('dataChanged')
+  })
 
   handle('pickFiles', async () => {
     const r = await dialog.showOpenDialog(win!, {
@@ -358,14 +363,29 @@ function buildPrintDoc(m: MessageFull): string {
 <body><h1>${esc(p.subject || '(sin asunto)')}</h1><dl><dt>De</dt><dd>${esc(p.fromName ? `${p.fromName} <${p.fromEmail}>` : p.fromEmail)}</dd><dt>Para</dt><dd>${fmt(p.to)}</dd>${p.cc.length ? `<dt>Cc</dt><dd>${fmt(p.cc)}</dd>` : ''}<dt>Fecha</dt><dd>${p.date ? esc(new Date(p.date).toLocaleString('es-ES')) : ''}</dd>${atts ? `<dt>Adjuntos</dt><dd>${atts}</dd>` : ''}</dl>${body}</body></html>`
 }
 
-// Ventana oculta sin JavaScript y sin red: el HTML del correo no puede ejecutar nada.
+// Ventana oculta sin JavaScript y sin red: el HTML del correo no puede ejecutar nada ni navegar.
+let printGuard = false
 async function withPrintWindow<T>(m: MessageFull, fn: (w: BrowserWindow) => Promise<T>): Promise<T> {
+  if (!printGuard) {
+    printGuard = true
+    session.fromPartition('pdf-export').webRequest.onBeforeRequest((d, cb) => cb({ cancel: !/^(data|file|wolfmail-att):/i.test(d.url) }))
+  }
+  const dir = mkdtempSync(join(app.getPath('temp'), 'wolfmail-doc-'))
   const w = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true, contextIsolation: true, partition: 'pdf-export' } })
+  const first = join(dir, 'mensaje.html')
+  let loaded = false
+  const block = (e: { preventDefault(): void }, url: string): void => { if (loaded || url !== pathToFileURL(first).toString()) e.preventDefault() }
+  w.webContents.on('will-navigate', block)
+  w.webContents.on('will-redirect', block)
+  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   try {
-    await w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPrintDoc(m)))
+    writeFileSync(first, buildPrintDoc(m), { mode: 0o600 })
+    await w.loadFile(first)
+    loaded = true
     return await fn(w)
   } finally {
     w.destroy()
+    try { rmSync(dir, { recursive: true, force: true }) } catch { /* nada */ }
   }
 }
 
@@ -414,8 +434,10 @@ async function replyMessage(id: number, mode: 'reply' | 'all' | 'forward'): Prom
   let to: string[] = []
   let cc: string[] = []
   if (mode !== 'forward') {
-    to = pick(m.fromEmail ? [{ name: m.fromName, email: m.fromEmail }] : [])
-    if (mode === 'all') { to.push(...pick(m.to)); cc = pick(m.cc) }
+    const mine = own.has(m.fromEmail.toLowerCase())
+    // Si el mensaje es propio (carpeta Enviados), se responde a sus destinatarios.
+    to = mine ? pick(m.to) : pick(m.fromEmail ? [{ name: m.fromName, email: m.fromEmail }] : [])
+    if (mode === 'all') { if (!mine) to.push(...pick(m.to)); cc = pick(m.cc) }
     if (!to.length && m.fromEmail) to = [m.fromEmail]
   }
   const re = mode === 'forward' ? /^(fwd?|rv|reenv):\s*/i : /^(re|rv):\s*/i
@@ -428,12 +450,14 @@ async function replyMessage(id: number, mode: 'reply' | 'all' | 'forward'): Prom
   // Algunos clientes (Windows) rechazan mailto largos: se recorta el citado.
   const MAX = 1500
   if (encodeURIComponent(body).length > MAX) {
-    while (body.length > 50 && encodeURIComponent(body).length > MAX) body = body.slice(0, Math.floor(body.length * 0.9))
+    let cps = Array.from(body)
+    while (cps.length > 50 && encodeURIComponent(cps.join('')).length > MAX) cps = cps.slice(0, Math.floor(cps.length * 0.9))
+    body = cps.join('')
     body += '\n[...]'
   }
   const q = [`subject=${encodeURIComponent(subject)}`, `body=${encodeURIComponent(body)}`]
   if (cc.length) q.push(`cc=${encodeURIComponent(cc.join(','))}`)
-  await shell.openExternal(`mailto:${to.map(encodeURIComponent).join(',')}?${q.join('&')}`)
+  try { await shell.openExternal(`mailto:${to.map(encodeURIComponent).join(',')}?${q.join('&')}`) } catch { return false }
   return true
 }
 
@@ -482,6 +506,10 @@ else {
     createWindow()
   })
 
+  // Temporales de sesiones anteriores que no llegaron a borrarse (cierre forzado).
+  try {
+    for (const n of readdirSync(app.getPath('temp'))) if (/^wolfmail-(abrir|imprimir|doc)-/.test(n)) rmSync(join(app.getPath('temp'), n), { recursive: true, force: true })
+  } catch { /* nada */ }
   app.on('window-all-closed', () => app.quit())
   app.on('before-quit', () => {
     worker?.kill()
