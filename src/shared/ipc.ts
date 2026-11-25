@@ -48,6 +48,7 @@ export interface WolfApi {
   onProgress(cb: (p: ImportProgress) => void): () => void
   onDataChanged(cb: () => void): () => void
   onOpenPaths(cb: (paths: string[]) => void): () => void
+  onMenu(cb: (action: string) => void): () => void
 
   saveAttachment(id: number): Promise<string | null>
   openAttachment(id: number): Promise<'opened' | 'blocked' | 'error'>

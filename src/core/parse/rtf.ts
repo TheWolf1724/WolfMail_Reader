@@ -11,6 +11,9 @@ export function rtfFromCompressed(data: Uint8Array | number[]): string | null {
   }
 }
 
+// Grupos de RTF que no son texto del mensaje (fuentes, colores, estilos, imagenes...).
+const SKIP_GROUPS = /^\\(fonttbl|colortbl|stylesheet|info|pict|object|latentstyles|listtable|listoverridetable|rsidtbl|generator|themedata|datastore|xmlnstbl|mmathPr|header|footer|fldinst)\b/
+
 function decodeWin1252Byte(b: number): string {
   return Buffer.from([b]).toString('latin1')
 }
@@ -34,7 +37,7 @@ export function rtfToContent(rtf: string): { text: string; html: string | null }
         const m = /^\\\*\\htmltag\d*\s?/.exec(rtf.slice(i, i + 20))
         if (m) i += m[0].length
         skip = false
-      } else if (rtf.startsWith('\\*', i)) skip = true
+      } else if (rtf.startsWith('\\*', i) || SKIP_GROUPS.test(rtf.slice(i, i + 24))) skip = true
       continue
     }
     if (c === '}') {

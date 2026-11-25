@@ -148,6 +148,8 @@ describe('formatos de Outlook', () => {
     expect(r.failed).toBe(0)
     const folders = lib.listFolders(1)
     expect(folders.length).toBeGreaterThan(1)
+    const all = lib.list({}, 0, 100)
+    expect(all.every((r) => r.date !== null && r.date < Date.UTC(2010, 0, 1))).toBe(true) // fechas del correo, no la de importacion
     const row = lib.list({ query: 'enron' }, 0, 1)[0]
     expect(row).toBeDefined()
     const m = lib.getMessage(row.id)!
@@ -191,8 +193,29 @@ describe('rtf', () => {
   it('extrae texto plano', () => {
     expect(rtfToContent('{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}Hola \\\'e1rbol\\par fin}').text).toContain('Hola árbol')
   })
+  it('ignora tablas de fuentes y colores', () => {
+    const r = rtfToContent('{\\rtf1\\ansi{\\fonttbl{\\f0\\fnil Arial;}{\\f1 Courier New;}}{\\colortbl;\\red0\\green0\\blue0;}{\\*\\generator Riched20}Texto real\\par}')
+    expect(r.text).toBe('Texto real')
+  })
   it('desencapsula HTML', () => {
     const r = rtfToContent('{\\rtf1\\ansi\\fromhtml1 {\\*\\htmltag64 <p>}\\htmlrtf Hola\\htmlrtf0 {\\*\\htmltag72 </p>}}')
     expect(r.html).toContain('<p>')
+  })
+})
+
+import { headerDate } from '../src/core/parse/common'
+describe('fechas', () => {
+  it('una cabecera Date ilegible no se convierte en la fecha de hoy', () => {
+    expect(headerDate('Date: garbage\r\nFrom: a@b.c')).toBeNull()
+    expect(headerDate('From: a@b.c')).toBeNull()
+  })
+  it('rescata la primera fecha de una cabecera duplicada', () => {
+    expect(headerDate('Date: Thu, 23 Aug 2001 15:49:51 -0700 (PDT),Thu, 23 Aug 2001 15:49:51 -0600')).toBe(Date.UTC(2001, 7, 23, 22, 49, 51))
+  })
+  it('usa Received como ultimo recurso', () => {
+    expect(headerDate('Received: from x by y; Mon, 02 Mar 2020 10:00:00 +0000\r\nSubject: s')).toBe(Date.UTC(2020, 2, 2, 10))
+  })
+  it('lee fechas normales y plegadas', () => {
+    expect(headerDate('Date: Tue, 03 Mar 2020\r\n 11:00:00 +0100')).toBe(Date.UTC(2020, 2, 3, 10))
   })
 })

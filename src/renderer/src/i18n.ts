@@ -1,0 +1,86 @@
+// Las cadenas en espanol son la clave. Si no hay traduccion, se muestra el espanol.
+import { createContext, useContext } from 'react'
+
+const EN: Record<string, string> = {
+  'Abrir archivos': 'Open files',
+  'Abrir carpeta': 'Open folder',
+  'Abrir': 'Open',
+  'Cuentas': 'Accounts',
+  'Ajustes': 'Settings',
+  'Buscar en el correo': 'Search mail',
+  'Buscar': 'Search',
+  'Todos los correos': 'All mail',
+  'Carpetas': 'Folders',
+  'Orígenes': 'Sources',
+  'No leídos': 'Unread',
+  'Con adjuntos': 'With attachments',
+  'Ordenar': 'Sort',
+  'Más recientes primero': 'Newest first',
+  'Más antiguos primero': 'Oldest first',
+  'Remitente': 'Sender',
+  'Asunto': 'Subject',
+  'Agrupar por conversación': 'Group by conversation',
+  'Sin asunto': '(no subject)',
+  'Sin remitente': '(no sender)',
+  'Cerrar': 'Close',
+  'Cancelar': 'Cancel',
+  'Guardar': 'Save',
+  'Eliminar': 'Remove',
+  'Tema': 'Theme',
+  'Claro': 'Light',
+  'Oscuro': 'Dark',
+  'Sistema': 'System',
+  'Idioma': 'Language',
+  'Tamaño del texto': 'Text size',
+  'Densidad': 'Density',
+  'Cómoda': 'Comfortable',
+  'Compacta': 'Compact',
+  'Panel de lectura': 'Reading pane',
+  'A la derecha': 'Right',
+  'Abajo': 'Bottom',
+  'Imágenes remotas': 'Remote images',
+  'Preguntar en cada mensaje': 'Ask for each message',
+  'Mostrar imágenes remotas': 'Show remote images',
+  'Se han bloqueado las imágenes remotas para proteger su privacidad.': 'Remote images were blocked to protect your privacy.',
+  'Mostrar en este mensaje': 'Show for this message',
+  'Adjuntos': 'Attachments',
+  'Guardar adjunto': 'Save attachment',
+  'Abrir adjunto': 'Open attachment',
+  'Para': 'To',
+  'Cc': 'Cc',
+  'De': 'From',
+  'Fecha': 'Date',
+  'Conversación': 'Conversation',
+  'mensajes': 'messages',
+  'mensaje': 'message',
+  'Imprimir / PDF': 'Print / PDF',
+  'Guardar como .eml': 'Save as .eml',
+  'Ver cabeceras': 'View headers',
+  'Cabeceras del mensaje': 'Message headers',
+  'Bienvenido a WolfMail': 'Welcome to WolfMail',
+  'Lea sus correos de Outlook y Google sin conexión: archivos .msg, .eml, .mbox, .pst y .ost, o cuentas por IMAP.': 'Read your Outlook and Google mail offline: .msg, .eml, .mbox, .pst and .ost files, or IMAP accounts.',
+  'Arrastre aquí sus archivos o carpetas, o use los botones.': 'Drag your files or folders here, or use the buttons.',
+  'Suelte los archivos para importarlos': 'Drop the files to import them',
+  'Atajos de teclado': 'Keyboard shortcuts',
+  'Acerca de': 'About',
+  'Añadir cuenta': 'Add account',
+  'Sincronizar': 'Sync',
+  'Seleccione un mensaje': 'Select a message',
+  'No hay mensajes': 'No messages',
+  'Ningún resultado': 'No results',
+  'Importando': 'Importing',
+  'Importación terminada': 'Import finished',
+  'Cancelar importación': 'Cancel import'
+}
+
+export type Lang = 'es' | 'en'
+export const LangContext = createContext<Lang>('es')
+
+export function translate(lang: Lang, es: string): string {
+  return lang === 'en' ? (EN[es] ?? es) : es
+}
+
+export function useT(): (es: string) => string {
+  const lang = useContext(LangContext)
+  return (es) => translate(lang, es)
+}

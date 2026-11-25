@@ -47,7 +47,7 @@ async function convert(reader: InstanceType<typeof MsgReader>, d: FieldsData, op
       messageId = p.messageId ?? messageId
       inReplyTo = p.inReplyTo
       references = p.references
-      date = p.date ?? date
+      date = date ?? p.date
     } catch { /* cabeceras ilegibles: se usan los campos MAPI */ }
   }
   if (!fromHeaders) {

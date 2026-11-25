@@ -1,0 +1,62 @@
+appId: com.thewolf1724.wolfmail
+productName: WolfMail
+copyright: TheWolf1724
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  - '!**/node_modules/**/{test,tests,__tests__,example,examples,docs,.github}/**'
+  - '!**/node_modules/**/*.{md,map,ts}'
+  - '!**/node_modules/pst-extractor/example/**'
+asar: true
+compression: normal
+artifactName: WolfMail-${version}-${os}-${arch}.${ext}
+
+linux:
+  icon: build/icon.png
+  category: Office;Email;
+  synopsis: Lector de correo (msg, eml, mbox, pst) y cuentas Google/Outlook
+  maintainer: TheWolf1724 <noreply@example.com>
+  target:
+    - target: AppImage
+      arch: x64
+    - target: deb
+      arch: x64
+  mimeTypes:
+    - application/vnd.ms-outlook
+    - message/rfc822
+    - application/mbox
+deb:
+  depends: [libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0]
+appImage:
+  artifactName: WolfMail-${version}-linux-portable.${ext}
+
+win:
+  icon: build/icon.ico
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch: x64
+    - target: portable
+      arch: x64
+  fileAssociations:
+    - ext: msg
+      name: Mensaje de Outlook
+      description: Mensaje de Outlook
+      icon: build/icon.ico
+    - ext: eml
+      name: Mensaje de correo
+      description: Mensaje de correo electronico
+      icon: build/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  artifactName: WolfMail-${version}-windows-setup.${ext}
+  shortcutName: WolfMail
+  language: '3082'
+portable:
+  artifactName: WolfMail-${version}-windows-portable.${ext}

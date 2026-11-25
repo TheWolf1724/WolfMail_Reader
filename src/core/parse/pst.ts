@@ -53,7 +53,7 @@ async function convert(m: PSTMessage, folderPath: string, opts: ParseOptions): P
       messageId = p.messageId ?? messageId
       inReplyTo = p.inReplyTo ?? inReplyTo
       references = p.references
-      date = p.date ?? date
+      date = date ?? p.date
       if (!to.length) to.push(...p.to)
       if (!cc.length) cc.push(...p.cc)
     } catch { /* se usan los campos MAPI */ }

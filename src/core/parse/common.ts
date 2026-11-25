@@ -1,6 +1,7 @@
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser'
 import type { Address, NormalizedAttachment, NormalizedMessage } from '../types'
 import { parseReferences } from '../threading'
+import { stripTags } from '../library'
 
 export interface ParseOptions {
   /** Carpeta por defecto para formatos que no tienen jerarquia (eml, msg, mbox). */
@@ -31,9 +32,40 @@ function headersToString(parsed: ParsedMail, raw: Buffer): string {
   return head.toString('utf8').slice(0, 200_000)
 }
 
+const DATE_RE = /(?:[A-Za-z]{3},?\s+)?\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4}\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:[+-]\d{4}|[A-Z]{1,5}))?/
+
+function validTime(s: string): number | null {
+  const t = Date.parse(s)
+  // Se descartan fechas absurdas (antes de 1970 o muy en el futuro): casi siempre son basura de cabecera.
+  return Number.isNaN(t) || t < 0 || t > Date.now() + 366 * 864e5 ? null : t
+}
+
+/**
+ * Fecha del mensaje a partir de las cabeceras en bruto. mailparser devuelve "ahora" cuando la cabecera
+ * Date es ilegible, lo que mezclaria correos antiguos con los nuevos; aqui se prefiere no tener fecha.
+ */
+export function headerDate(headers: string): number | null {
+  const unfolded = headers.replace(/\r?\n[ \t]+/g, ' ')
+  const d = /^Date:[ \t]*(.*)$/im.exec(unfolded)
+  if (d) {
+    const whole = validTime(d[1].replace(/\([^)]*\)/g, '').trim())
+    if (whole !== null) return whole
+    const m = DATE_RE.exec(d[1].replace(/\([^)]*\)/g, ''))
+    const first = m ? validTime(m[0]) : null
+    if (first !== null) return first
+  }
+  // Ultimo recurso: fecha de recepcion de la cabecera Received mas antigua (la ultima de la lista).
+  const rec = [...unfolded.matchAll(/^Received:.*;[ \t]*(.+)$/gim)]
+  for (let i = rec.length - 1; i >= 0; i--) {
+    const t = validTime(rec[i][1].replace(/\([^)]*\)/g, '').trim())
+    if (t !== null) return t
+  }
+  return null
+}
+
 /** Convierte un mensaje RFC 822 en bruto en un mensaje normalizado. */
 export async function parseRfc822(raw: Buffer, opts: ParseOptions, extra?: Partial<NormalizedMessage>): Promise<NormalizedMessage> {
-  const p = await simpleParser(raw, { skipImageLinks: true, skipHtmlToText: false, skipTextToHtml: true, skipTextLinks: true })
+  const p = await simpleParser(raw, { skipImageLinks: true, skipHtmlToText: true, skipTextToHtml: true, skipTextLinks: true })
   const attachments: NormalizedAttachment[] = p.attachments.map((a) => ({
     name: a.filename || (a.contentType.startsWith('message/') ? 'mensaje.eml' : 'adjunto'),
     mime: a.contentType || 'application/octet-stream',
@@ -52,8 +84,8 @@ export async function parseRfc822(raw: Buffer, opts: ParseOptions, extra?: Parti
     to: flattenAddresses(p.to),
     cc: flattenAddresses(p.cc),
     bcc: flattenAddresses(p.bcc),
-    date: p.date && !Number.isNaN(p.date.getTime()) ? p.date.getTime() : null,
-    text: p.text ?? '',
+    date: headerDate(headersToString(p, raw)),
+    text: p.text ?? (typeof p.html === 'string' ? stripTags(p.html) : ''),
     html: typeof p.html === 'string' ? p.html : null,
     headers: headersToString(p, raw),
     attachments,
