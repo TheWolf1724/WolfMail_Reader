@@ -1,0 +1,20 @@
+# Locales de Claude Code (por-usuario, nunca al repo)
+.claude/settings.local.json
+
+# Sistema
+.DS_Store
+Thumbs.db
+*~
+*.swp
+
+# Entornos y dependencias habituales (ajusta al stack del proyecto)
+.env
+.env.*
+!.env.example
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+build/

@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────────────────
+# CI de la plantilla TEMPLATE — respalda la escalera de verificación
+# (la misma del pull_request_template.md) con una comprobación automática.
+#
+# ESTÁ DESACTIVADO A PROPÓSITO: el fichero termina en «.example», y GitHub
+# solo ejecuta workflows «.yml»/«.yaml». Mientras se llame así, NO corre y NO
+# consume minutos de Actions — coste cero, la regla por defecto del repo.
+#
+# CÓMO ACTIVARLO (cuando el proyecto tenga lint/tests reales):
+#   1. Renómbralo a «ci.yml».
+#   2. Descomenta el job y sustituye los pasos por los de TU stack.
+#   3. Coste: en repo PRIVADO, Actions gasta de la cuota gratuita mensual
+#      (2.000 min/mes en plan Free). Un proyecto pequeño no se acerca a ese
+#      límite, pero si crece, vigílalo — pasado ese punto, factura.
+# ─────────────────────────────────────────────────────────────────────────
+
+# name: CI
+#
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
+#
+# # Cancela ejecuciones viejas del mismo PR: menos minutos gastados.
+# concurrency:
+#   group: ci-${{ github.ref }}
+#   cancel-in-progress: true
+#
+# jobs:
+#   verificacion:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#
+#       # --- Sustituye TODO lo de abajo por los comandos reales de tu stack ---
+#       # Node de ejemplo:
+#       #   - uses: actions/setup-node@v4
+#       #     with: { node-version: 'lts/*', cache: 'npm' }
+#       #   - run: npm ci
+#       #   - run: npm run lint --if-present
+#       #   - run: npm test --if-present
+#       #
+#       # Python de ejemplo:
+#       #   - uses: actions/setup-python@v5
+#       #     with: { python-version: '3.x' }
+#       #   - run: pip install -r requirements.txt
+#       #   - run: ruff check .
+#       #   - run: pytest
+#
+#       - run: echo "Sustituye este paso por lint/typecheck/tests de tu stack"
