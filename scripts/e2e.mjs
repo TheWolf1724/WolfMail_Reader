@@ -27,6 +27,16 @@ try {
   check('pantalla de bienvenida vacia', await call(`return document.body.innerText.includes('Bienvenido')`))
   await app.shot(join(out, '01-bienvenida.png'))
 
+  // Arrastrar y soltar un fichero real sobre la ventana.
+  const drag = { items: [], files: [eml], dragOperationsMask: 1 }
+  await app.send('Input.dispatchDragEvent', { type: 'dragEnter', x: 400, y: 300, data: drag })
+  await app.sleep(200)
+  check('overlay de arrastre visible', await call(`return !!document.querySelector('.dropzone-overlay')`))
+  await app.send('Input.dispatchDragEvent', { type: 'dragOver', x: 400, y: 300, data: drag })
+  await app.send('Input.dispatchDragEvent', { type: 'drop', x: 400, y: 300, data: drag })
+  for (let i = 0; i < 20; i++) { await app.sleep(300); if (await call(`return (await window.wolf.stats()).messages >= 1`)) break }
+  check('soltar un fichero lo importa', await call(`return (await window.wolf.stats()).messages`) === 1)
+  check('overlay desaparece al soltar', await call(`return !document.querySelector('.dropzone-overlay')`))
   await call(`return window.wolf.startImport(['${fixtures}/test.msg','${eml}','${process.cwd()}/node_modules/pst-extractor/example/testdata/enron.pst'])`)
   for (let i = 0; i < 40; i++) { await app.sleep(500); if (await call(`return (await window.wolf.stats()).messages >= 73`)) break }
   await app.sleep(800)
