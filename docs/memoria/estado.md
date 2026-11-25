@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-Ultima actualizacion: 2026-11-25. **RETOMAR** desde "Pendiente".
+Ultima actualizacion: 2026-11-25 (v0.4.0 publicada; releases en GitHub: 0.4.0 y 0.3.3). **RETOMAR** desde "Pendiente".
 
 ## Hecho (v0.3.0 barra de acciones y revision de codigo; v0.2.0: imprimir y responder via mailto; repo https://github.com/TheWolf1724/WolfMail_Reader, releases con max. 2 versiones por sistema)
 ## Hecho (v0.1.0)
@@ -19,6 +19,9 @@ Ultima actualizacion: 2026-11-25. **RETOMAR** desde "Pendiente".
 - Cuerpo del correo siempre sobre "papel" claro, incluso en tema oscuro.
 
 ## Pendiente
+- Probar la cita con formato (Ctrl+V) en el Gmail real del usuario; si Gmail no acepta bien el pegado, valorar abrir Gmail compose o .eml con X-Unsent para Outlook.
+- El borrador que crea Gmail al responder es del programa de correo, no de WolfMail.
+- AppImage requiere libfuse2 o APPIMAGE_EXTRACT_AND_RUN=1.
 - Verificar IMAP/OAuth con cuentas reales (necesita credenciales del usuario).
 - Revision de accesibilidad con lector de pantalla real.
 - Firma de codigo de los .exe (requiere certificado de pago): hoy sin firmar.
