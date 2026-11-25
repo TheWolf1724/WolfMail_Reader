@@ -31,7 +31,7 @@ Descargue desde la página de versiones:
 
 **Modo portable:** guarda sus datos junto al ejecutable, en la carpeta `WolfMailData`. En la versión instalada, los datos van al perfil del usuario. También se activa creando un archivo `portable.flag` junto al programa o arrancando con `--portable`.
 
-Linux, AppImage: `chmod +x WolfMail-*.AppImage && ./WolfMail-*.AppImage`.
+Linux, AppImage: `chmod +x WolfMail-*.AppImage && ./WolfMail-*.AppImage`. Si da el error `libfuse.so.2` (Ubuntu 22.04 y posteriores), instale `libfuse2` o ejecute `APPIMAGE_EXTRACT_AND_RUN=1 ./WolfMail-*.AppImage`.
 
 ## Uso rápido
 
