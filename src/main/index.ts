@@ -14,7 +14,7 @@ import { replyBody } from '../core/reply'
 import { PROVIDERS, refreshToken } from '../core/oauth'
 import type { ImapAccount } from '../core/imap'
 import type { ImportProgress, ListFilter, MessageFull, Settings } from '../core/types'
-import type { AccountView, AddPasswordAccount, AppInfo } from '../shared/ipc'
+import type { ReplyOutcome, AccountView, AddPasswordAccount, AppInfo } from '../shared/ipc'
 import { Store, type StoredAccount } from './store'
 import { runOAuth } from './oauth-flow'
 
@@ -421,9 +421,9 @@ async function printMessage(id: number): Promise<'printed' | 'cancelled' | 'view
 }
 
 /** Responde o reenvia abriendo el cliente de correo del sistema (mailto:). WolfMail no envia correo. */
-async function replyMessage(id: number, mode: 'reply' | 'all' | 'forward'): Promise<boolean> {
+async function replyMessage(id: number, mode: 'reply' | 'all' | 'forward'): Promise<ReplyOutcome> {
   const m = lib.getMessage(id)
-  if (!m) return false
+  if (!m) return { ok: false, truncated: false, full: '' }
   const own = new Set(store.accounts.map((a) => (a.user ?? '').toLowerCase()).filter(Boolean))
   const seen = new Set<string>()
   const pick = (l: { name: string; email: string }[]): string[] => l.filter((x) => {
@@ -445,11 +445,11 @@ async function replyMessage(id: number, mode: 'reply' | 'all' | 'forward'): Prom
   const subject = (mode === 'forward' ? 'Fwd: ' : 'Re: ') + (m.subject || '').replace(re, '')
   const who = m.fromName ? `${m.fromName} <${m.fromEmail}>` : m.fromEmail
   // Algunos clientes (Windows) rechazan mailto largos: el citado se recorta en un limite de linea.
-  const body = replyBody({ mode: mode === 'forward' ? 'forward' : 'reply', text: m.text, who, date: m.date, subject: m.subject, to: m.to.map((x) => x.email).join(', '), max: 1800 })
-  const q = [`subject=${encodeURIComponent(subject)}`, `body=${encodeURIComponent(body)}`]
+  const r = replyBody({ mode: mode === 'forward' ? 'forward' : 'reply', text: m.text, who, date: m.date, subject: m.subject, to: m.to.map((x) => x.email).join(', '), max: process.platform === 'win32' ? 1900 : 8000 })
+  const q = [`subject=${encodeURIComponent(subject)}`, `body=${encodeURIComponent(r.body)}`]
   if (cc.length) q.push(`cc=${encodeURIComponent(cc.join(','))}`)
-  try { await shell.openExternal(`mailto:${to.map(encodeURIComponent).join(',')}?${q.join('&')}`) } catch { return false }
-  return true
+  try { await shell.openExternal(`mailto:${to.map(encodeURIComponent).join(',')}?${q.join('&')}`) } catch { return { ok: false, truncated: false, full: '' } }
+  return { ok: true, truncated: r.truncated, full: r.full }
 }
 
 // ---------- Arranque ----------

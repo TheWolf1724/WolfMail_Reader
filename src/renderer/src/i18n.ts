@@ -63,6 +63,7 @@ const EN: Record<string, string> = {
   'Enviado a la impresora': 'Sent to the printer',
   'PDF abierto en el visor: imprima desde allí': 'PDF opened in the viewer: print from there',
   'No se pudo imprimir': 'Could not print',
+  'Abierto en su programa de correo. El texto completo está copiado: péguelo con Ctrl+V.': 'Opened in your mail program. The full text is copied: paste it with Ctrl+V.',
   'Abierto en su programa de correo': 'Opened in your mail program',
   'No se pudo abrir el programa de correo': 'Could not open the mail program',
   'Guardar como .eml': 'Save as .eml',

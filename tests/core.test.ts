@@ -248,20 +248,28 @@ describe('consultas negadas y limpieza (revision)', () => {
 
 describe('respuesta y reenvio', () => {
   const text = 'Hola Ana,\n\nTe paso el presupuesto [image: logo] <http://x.example/y>.\n\nUn saludo\n\nPEPE\nTel 600 000 000\n[image:\nmap]\n\nEl lun, 26 oct 2026 a las 17:22, Luis <l@x.com> escribió:\n> mensaje antiguo\n'
-  it('cita solo el texto propio, sin ruido, firma ni historial', async () => {
+  const base = { who: 'Pepe <p@x.com>', date: Date.UTC(2026, 10, 3, 10, 0), subject: 'Presupuesto', to: 'a@x.com' }
+  it('cita el mensaje completo y limpio, sin marcadores ni enlaces sueltos', async () => {
     const { replyBody } = await import('../src/core/reply')
-    const b = replyBody({ mode: 'reply', text, who: 'Pepe <p@x.com>', date: Date.UTC(2026, 10, 3, 10, 0), subject: 'Presupuesto', to: 'a@x.com', max: 1800 })
-    expect(b).toContain('> Hola Ana,')
-    expect(b).toContain('> Te paso el presupuesto.')
-    expect(b).toContain('> Un saludo')
-    for (const ruido of ['[image', 'http://', 'Tel 600', 'mensaje antiguo', 'PEPE']) expect(b).not.toContain(ruido)
+    const r = replyBody({ mode: 'reply', text, max: 8000, ...base })
+    expect(r.truncated).toBe(false)
+    for (const quiero of ['> Hola Ana,', '> Te paso el presupuesto.', '> Un saludo', '> Tel 600 000 000', '> > mensaje antiguo']) expect(r.body).toContain(quiero)
+    for (const ruido of ['[image', 'http://']) expect(r.body).not.toContain(ruido)
   })
-  it('recorta en limite de linea y nunca rompe un emoji', async () => {
-    const { limitLines } = await import('../src/core/reply')
-    const largo = Array.from({ length: 200 }, (_, i) => `linea ${i} 😀 acentos áéí`).join('\n')
-    const r = limitLines(largo, 600)
-    expect(encodeURIComponent(r).length).toBeLessThanOrEqual(700)
-    expect(r.endsWith('\n[...]')).toBe(true)
-    expect(() => encodeURIComponent(r)).not.toThrow()
+  it('une las lineas partidas del texto plano', async () => {
+    const { unwrap } = await import('../src/core/reply')
+    const l1 = 'Subject: Fwd: 40 VIV_EN EL HIGUERON_TB51 - Solicitud de Proyecto'
+    expect(unwrap(`${l1}\nActualizado.\nSiguiente parrafo corto.`)).toBe(`${l1} Actualizado.\nSiguiente parrafo corto.`)
+    expect(unwrap('Linea corta\notra linea')).toBe('Linea corta\notra linea')
+  })
+  it('si no cabe, recorta en limite de linea y devuelve el texto completo', async () => {
+    const { replyBody } = await import('../src/core/reply')
+    const largo = Array.from({ length: 300 }, (_, i) => `linea ${i} 😀 acentos áéí`).join('\n')
+    const r = replyBody({ mode: 'reply', text: largo, max: 1500, ...base })
+    expect(r.truncated).toBe(true)
+    expect(encodeURIComponent(r.body).length).toBeLessThanOrEqual(1600)
+    expect(r.body.endsWith('\n[...]')).toBe(true)
+    expect(r.full).toContain('linea 299')
+    expect(() => encodeURIComponent(r.body)).not.toThrow()
   })
 })

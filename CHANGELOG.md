@@ -1,5 +1,8 @@
 # Registro de cambios
 
+## 0.3.3 - 2026-11-25
+- Responder y reenviar citan el mensaje completo (con su historial), limpio de [image:] y enlaces sueltos y con las lineas partidas del texto plano re-unidas. Limite del enlace: 8000 caracteres (1900 en Windows). Si el mensaje no cabe, se copia el texto completo al portapapeles para pegarlo con Ctrl+V.
+
 ## 0.3.2 - 2026-11-25
 - Responder y reenviar: el texto citado ya no arrastra marcadores [image: ...], enlaces <http://...>, firmas ni el historial anidado; se corta en un limite de linea (sin romper frases ni emojis) y la fecha tiene formato natural.
 

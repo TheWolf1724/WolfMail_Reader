@@ -19,23 +19,23 @@ export function cleanBodyText(text: string): string {
   return t.replace(/\n{3,}/g, '\n\n').trim()
 }
 
-/**
- * Devuelve el texto propio del mensaje, sin el historial anidado (citas, reenviados, firma).
- * Si no queda nada (todo era un reenvio), devuelve el texto limpio completo.
- */
-export function ownText(text: string): string {
-  const clean = cleanBodyText(text)
-  const lines = clean.split('\n')
-  let end = lines.length
+/** Une las lineas partidas a ~76 columnas por el texto plano de los correos HTML ("...Proyecto\nActualizado."). */
+export function unwrap(text: string): string {
+  const lines = text.split('\n')
+  const out: string[] = []
   for (let i = 0; i < lines.length; i++) {
-    const l = lines[i].trim()
-    if (l.startsWith('>') || NESTED_START.some((r) => r.test(l))) { end = i; break }
+    let l = lines[i]
+    while (i + 1 < lines.length && lines[i + 1].trim() !== '' && !/^\s*(>|[-*•]|\d+[.)]|-{2,})/.test(lines[i + 1])) {
+      const cur = l.trimEnd()
+      const next = lines[i + 1].trim()
+      if (/<$/.test(cur)) { l = cur + next; i++; continue } // "Nombre <\ncorreo@x>"
+      const wrapped = cur.length >= 58 && cur.length <= 80 && !/^[\wÁÉÍÓÚÑáéíóúñ ]{1,20}:\s/.test(next)
+      const cont = cur.length >= 58 && /^[a-záéíóúñ]/.test(next) // sigue en minuscula: continuacion
+      if (!/[.:;!?)\]>]$/.test(cur) && (wrapped || cont)) { l = cur + ' ' + next; i++ } else break
+    }
+    out.push(l)
   }
-  // Tras la despedida solo hay firma (telefonos, direccion, logos): no se cita.
-  const kept = lines.slice(0, end)
-  const sign = kept.findIndex((l) => SIGN_OFF.test(l.trim()))
-  const own = (sign >= 0 ? kept.slice(0, sign + 1) : kept).join('\n').trim()
-  return own || clean
+  return out.join('\n')
 }
 
 /** Corta en limite de linea para que el texto codificado no pase de `max`; anade [...] si recorta. */
@@ -63,13 +63,21 @@ export function replyDate(ms: number | null): string {
   return `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()} a las ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-export function replyBody(opts: { mode: 'reply' | 'forward'; text: string; who: string; date: number | null; subject: string; to: string; max: number }): string {
+export interface ReplyResult {
+  body: string
+  /** Texto completo (sin recortar) para el portapapeles cuando el enlace no admite tanto. */
+  full: string
+  truncated: boolean
+}
+
+export function replyBody(opts: { mode: 'reply' | 'forward'; text: string; who: string; date: number | null; subject: string; to: string; max: number }): ReplyResult {
   const { mode, who, date, subject, max } = opts
-  if (mode === 'forward') {
-    const head = `\n\n---------- Mensaje reenviado ----------\nDe: ${who}\nFecha: ${replyDate(date)}\nAsunto: ${subject}\nPara: ${opts.to}\n\n`
-    return head + limitLines(cleanBodyText(opts.text), max - encodeURIComponent(head).length)
-  }
-  const head = `\n\nEl ${replyDate(date)}, ${who} escribió:\n`
-  const quoted = ownText(opts.text).split('\n').map((l) => (l ? '> ' + l : '>')).join('\n')
-  return head + limitLines(quoted, max - encodeURIComponent(head).length)
+  const clean = unwrap(cleanBodyText(opts.text))
+  const head = mode === 'forward'
+    ? `\n\n---------- Mensaje reenviado ----------\nDe: ${who}\nFecha: ${replyDate(date)}\nAsunto: ${subject}\nPara: ${opts.to}\n\n`
+    : `\n\nEl ${replyDate(date)}, ${who} escribió:\n`
+  const content = mode === 'forward' ? clean : clean.split('\n').map((l) => (l ? '> ' + l : '>')).join('\n')
+  const room = max - encodeURIComponent(head).length
+  const limited = limitLines(content, room)
+  return { body: head + limited, full: (head + content).replace(/^\n+/, ''), truncated: limited !== content }
 }

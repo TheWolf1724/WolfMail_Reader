@@ -11,7 +11,12 @@ export async function printMsg(id: number, t: T, notify: Notify): Promise<void> 
 }
 
 export async function replyMsg(id: number, mode: 'reply' | 'all' | 'forward', t: T, notify: Notify): Promise<void> {
-  let ok = false
-  try { ok = await window.wolf.replyMessage(id, mode) } catch { /* se avisa abajo */ }
-  notify(ok ? t('Abierto en su programa de correo') : t('No se pudo abrir el programa de correo'))
+  let r = { ok: false, truncated: false, full: '' }
+  try { r = await window.wolf.replyMessage(id, mode) } catch { /* se avisa abajo */ }
+  if (!r.ok) { notify(t('No se pudo abrir el programa de correo')); return }
+  if (r.truncated) {
+    // El enlace no admite todo el texto: el mensaje completo queda en el portapapeles.
+    try { await navigator.clipboard.writeText(r.full); notify(t('Abierto en su programa de correo. El texto completo está copiado: péguelo con Ctrl+V.')); return } catch { /* sin portapapeles */ }
+  }
+  notify(t('Abierto en su programa de correo'))
 }

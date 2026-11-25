@@ -28,6 +28,9 @@ export interface AppInfo {
 }
 
 /** API expuesta a la interfaz por el preload. Todo lo que cruza el puente esta aqui. */
+/** Resultado de abrir el programa de correo: si el texto no cupo en el enlace, `full` lleva el texto completo. */
+export interface ReplyOutcome { ok: boolean; truncated: boolean; full: string }
+
 export interface WolfApi {
   appInfo(): Promise<AppInfo>
   stats(): Promise<{ sources: number; messages: number }>
@@ -55,7 +58,7 @@ export interface WolfApi {
   openExternal(url: string): Promise<boolean>
   exportPdf(messageId: number): Promise<string | null>
   printMessage(messageId: number): Promise<'printed' | 'cancelled' | 'viewer' | 'error'>
-  replyMessage(messageId: number, mode: 'reply' | 'all' | 'forward'): Promise<boolean>
+  replyMessage(messageId: number, mode: 'reply' | 'all' | 'forward'): Promise<ReplyOutcome>
   saveSource(messageId: number): Promise<string | null>
 
   getSettings(): Promise<Settings>
