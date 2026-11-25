@@ -245,3 +245,23 @@ describe('consultas negadas y limpieza (revision)', () => {
     expect(rows.every((r) => r.threadCount === 1)).toBe(true)
   })
 })
+
+describe('respuesta y reenvio', () => {
+  const text = 'Hola Ana,\n\nTe paso el presupuesto [image: logo] <http://x.example/y>.\n\nUn saludo\n\nPEPE\nTel 600 000 000\n[image:\nmap]\n\nEl lun, 26 oct 2026 a las 17:22, Luis <l@x.com> escribió:\n> mensaje antiguo\n'
+  it('cita solo el texto propio, sin ruido, firma ni historial', async () => {
+    const { replyBody } = await import('../src/core/reply')
+    const b = replyBody({ mode: 'reply', text, who: 'Pepe <p@x.com>', date: Date.UTC(2026, 10, 3, 10, 0), subject: 'Presupuesto', to: 'a@x.com', max: 1800 })
+    expect(b).toContain('> Hola Ana,')
+    expect(b).toContain('> Te paso el presupuesto.')
+    expect(b).toContain('> Un saludo')
+    for (const ruido of ['[image', 'http://', 'Tel 600', 'mensaje antiguo', 'PEPE']) expect(b).not.toContain(ruido)
+  })
+  it('recorta en limite de linea y nunca rompe un emoji', async () => {
+    const { limitLines } = await import('../src/core/reply')
+    const largo = Array.from({ length: 200 }, (_, i) => `linea ${i} 😀 acentos áéí`).join('\n')
+    const r = limitLines(largo, 600)
+    expect(encodeURIComponent(r).length).toBeLessThanOrEqual(700)
+    expect(r.endsWith('\n[...]')).toBe(true)
+    expect(() => encodeURIComponent(r)).not.toThrow()
+  })
+})

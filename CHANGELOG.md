@@ -1,5 +1,8 @@
 # Registro de cambios
 
+## 0.3.2 - 2026-11-25
+- Responder y reenviar: el texto citado ya no arrastra marcadores [image: ...], enlaces <http://...>, firmas ni el historial anidado; se corta en un limite de linea (sin romper frases ni emojis) y la fecha tiene formato natural.
+
 ## 0.3.1 - 2026-11-25
 - Corregido: los operadores de busqueda (de:, para:, asunto:, adjunto:, carpeta:, etiqueta:) distinguian acentos y mayusculas no ASCII; ahora `de:jose` encuentra a "José" y `de:lopez` a "López".
 

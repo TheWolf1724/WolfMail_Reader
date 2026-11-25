@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto'
 import MailComposer from 'nodemailer/lib/mail-composer'
 import workerPath from './worker?modulePath'
 import { Library } from '../core/library'
+import { replyBody } from '../core/reply'
 import { PROVIDERS, refreshToken } from '../core/oauth'
 import type { ImapAccount } from '../core/imap'
 import type { ImportProgress, ListFilter, MessageFull, Settings } from '../core/types'
@@ -442,19 +443,9 @@ async function replyMessage(id: number, mode: 'reply' | 'all' | 'forward'): Prom
   }
   const re = mode === 'forward' ? /^(fwd?|rv|reenv):\s*/i : /^(re|rv):\s*/i
   const subject = (mode === 'forward' ? 'Fwd: ' : 'Re: ') + (m.subject || '').replace(re, '')
-  const when = m.date ? new Date(m.date).toLocaleString('es-ES') : ''
   const who = m.fromName ? `${m.fromName} <${m.fromEmail}>` : m.fromEmail
-  const quoted = m.text.trim().split(/\r?\n/).map((l) => '> ' + l).join('\n')
-  let intro = mode === 'forward' ? `\n\n---------- Mensaje reenviado ----------\nDe: ${who}\nFecha: ${when}\nAsunto: ${m.subject}\n\n` : `\n\nEl ${when}, ${who} escribio:\n`
-  let body = intro + (mode === 'forward' ? m.text.trim() : quoted)
-  // Algunos clientes (Windows) rechazan mailto largos: se recorta el citado.
-  const MAX = 1500
-  if (encodeURIComponent(body).length > MAX) {
-    let cps = Array.from(body)
-    while (cps.length > 50 && encodeURIComponent(cps.join('')).length > MAX) cps = cps.slice(0, Math.floor(cps.length * 0.9))
-    body = cps.join('')
-    body += '\n[...]'
-  }
+  // Algunos clientes (Windows) rechazan mailto largos: el citado se recorta en un limite de linea.
+  const body = replyBody({ mode: mode === 'forward' ? 'forward' : 'reply', text: m.text, who, date: m.date, subject: m.subject, to: m.to.map((x) => x.email).join(', '), max: 1800 })
   const q = [`subject=${encodeURIComponent(subject)}`, `body=${encodeURIComponent(body)}`]
   if (cc.length) q.push(`cc=${encodeURIComponent(cc.join(','))}`)
   try { await shell.openExternal(`mailto:${to.map(encodeURIComponent).join(',')}?${q.join('&')}`) } catch { return false }
