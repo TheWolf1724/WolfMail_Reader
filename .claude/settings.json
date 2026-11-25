@@ -1,0 +1,15 @@
+{
+  "$comment": "Ajustes compartidos del proyecto (plantilla TEMPLATE). El hook SessionStart inyecta ESTADO.md en el contexto al abrir cada sesión: el protocolo de inicio deja de depender de que el modelo se acuerde. Los ajustes personales van en settings.local.json (ignorado por git).",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '--- memoria/proyecto/ESTADO.md (inyectado por hook SessionStart) ---'; cat memoria/proyecto/ESTADO.md 2>/dev/null || echo '(sin ESTADO.md)'"
+          }
+        ]
+      }
+    ]
+  }
+}

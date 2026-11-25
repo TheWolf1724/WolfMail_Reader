@@ -1,0 +1,6 @@
+{
+  "$comment": "Ejemplo de ~/.claude/settings.json para el modo Fable con Opus. Fusiona estas claves con las que ya tengas — no sobrescribas tu fichero entero sin mirar. 'model: opusplan' usa Opus para planificar y Sonnet para ejecutar (barato); pon 'opus' a secas para usar Opus en todo.",
+  "model": "opus",
+  "outputStyle": "fable",
+  "alwaysThinkingEnabled": true
+}
