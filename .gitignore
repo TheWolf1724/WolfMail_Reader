@@ -1,0 +1,17 @@
+node_modules/
+out/
+dist/
+release/
+*.log
+.env*
+*.key
+*.pem
+*.pfx
+*.p12
+credentials.*
+secrets.*
+*.token
+token.json
+WolfMailData/
+.claude/
+tests/.tmp/
