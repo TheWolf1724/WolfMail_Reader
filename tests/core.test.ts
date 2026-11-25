@@ -110,6 +110,8 @@ describe('importacion', () => {
     expect(lib.count({ query: 'antes:2020-01-01' })).toBe(0)
     expect(lib.count({ query: 'despues:2020-01-01' })).toBe(2)
     expect(lib.count({ query: 'facturá' })).toBe(1) // sin distinguir acentos
+    expect(lib.count({ query: 'asunto:FACTURÁ' })).toBe(1) // operadores: sin acentos ni mayusculas
+    expect(lib.count({ query: 'de:PÉREZ' })).toBe(2)
   })
 
   it('ordena y pagina', async () => {

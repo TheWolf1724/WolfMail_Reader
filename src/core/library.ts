@@ -8,7 +8,7 @@ import type {
   NormalizedMessage, SourceInfo, SourceKind
 } from './types'
 import { cleanMessageId, normalizeSubject } from './threading'
-import { parseQuery, queryToSql } from './query'
+import { fold, parseQuery, queryToSql } from './query'
 
 const SCHEMA_VERSION = 1
 
@@ -81,6 +81,7 @@ export class Library {
     this.blobDir = join(dir, 'adjuntos')
     mkdirSync(this.blobDir, { recursive: true })
     this.db = new DatabaseSync(join(dir, 'biblioteca.db'))
+    this.db.function('wm_fold', { deterministic: true }, (v) => (typeof v === 'string' ? fold(v) : v))
     this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 15000;')
     this.db.exec(SCHEMA)
     const v = this.db.prepare(`SELECT value FROM meta WHERE key='schema'`).get() as Row | undefined

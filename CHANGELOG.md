@@ -1,5 +1,8 @@
 # Registro de cambios
 
+## 0.3.1 - 2026-11-25
+- Corregido: los operadores de busqueda (de:, para:, asunto:, adjunto:, carpeta:, etiqueta:) distinguian acentos y mayusculas no ASCII; ahora `de:jose` encuentra a "José" y `de:lopez` a "López".
+
 ## 0.3.0 - 2026-11-25
 - Barra de acciones fija sobre el lector: Responder, Responder a todos, Reenviar e Imprimir.
 - Atajos Ctrl+P / Ctrl+R / Ctrl+Mayus+R / Ctrl+Mayus+F funcionando desde el menu.

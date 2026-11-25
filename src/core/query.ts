@@ -97,7 +97,9 @@ export interface SqlPart {
   params: (string | number)[]
 }
 
-const like = (s: string): string => `%${s.replace(/[\\%_]/g, (c) => '\\' + c)}%`
+/** Minusculas y sin acentos: las busquedas por operador no distinguen "José" de "jose". */
+export const fold = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+const like = (s: string): string => `%${fold(s).replace(/[\\%_]/g, (c) => '\\' + c)}%`
 
 /** Genera condiciones para la tabla `messages m` (con alias m). */
 export function queryToSql(q: ParsedQuery): SqlPart {
@@ -119,35 +121,35 @@ export function queryToSql(q: ParsedQuery): SqlPart {
     }
   }
   for (const v of q.from) {
-    where.push(`(m.from_email LIKE ? ESCAPE '\\' OR m.from_name LIKE ? ESCAPE '\\')`)
+    where.push(`(wm_fold(m.from_email) LIKE ? ESCAPE '\\' OR wm_fold(m.from_name) LIKE ? ESCAPE '\\')`)
     params.push(like(v), like(v))
   }
   for (const v of q.to) {
-    where.push(`(m.to_text LIKE ? ESCAPE '\\' OR m.cc_text LIKE ? ESCAPE '\\')`)
+    where.push(`(wm_fold(m.to_text) LIKE ? ESCAPE '\\' OR wm_fold(m.cc_text) LIKE ? ESCAPE '\\')`)
     params.push(like(v), like(v))
   }
   for (const v of q.subject) {
-    where.push(`m.subject LIKE ? ESCAPE '\\'`)
+    where.push(`wm_fold(m.subject) LIKE ? ESCAPE '\\'`)
     params.push(like(v))
   }
   for (const v of q.attachment) {
-    where.push(`EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.name LIKE ? ESCAPE '\\')`)
+    where.push(`EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND wm_fold(a.name) LIKE ? ESCAPE '\\')`)
     params.push(like(v))
   }
   for (const v of q.folder) {
-    where.push(`m.folder_id IN (SELECT id FROM folders WHERE path LIKE ? ESCAPE '\\')`)
+    where.push(`m.folder_id IN (SELECT id FROM folders WHERE wm_fold(path) LIKE ? ESCAPE '\\')`)
     params.push(like(v))
   }
   for (const v of q.label) {
-    where.push(`m.labels LIKE ? ESCAPE '\\'`)
+    where.push(`wm_fold(m.labels) LIKE ? ESCAPE '\\'`)
     params.push(like(v))
   }
-  for (const v of q.not.from) { where.push(`NOT (m.from_email LIKE ? ESCAPE '\\' OR m.from_name LIKE ? ESCAPE '\\')`); params.push(like(v), like(v)) }
-  for (const v of q.not.to) { where.push(`NOT (m.to_text LIKE ? ESCAPE '\\' OR m.cc_text LIKE ? ESCAPE '\\')`); params.push(like(v), like(v)) }
-  for (const v of q.not.subject) { where.push(`m.subject NOT LIKE ? ESCAPE '\\'`); params.push(like(v)) }
-  for (const v of q.not.attachment) { where.push(`NOT EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.name LIKE ? ESCAPE '\\')`); params.push(like(v)) }
-  for (const v of q.not.folder) { where.push(`m.folder_id NOT IN (SELECT id FROM folders WHERE path LIKE ? ESCAPE '\\')`); params.push(like(v)) }
-  for (const v of q.not.label) { where.push(`m.labels NOT LIKE ? ESCAPE '\\'`); params.push(like(v)) }
+  for (const v of q.not.from) { where.push(`NOT (wm_fold(m.from_email) LIKE ? ESCAPE '\\' OR wm_fold(m.from_name) LIKE ? ESCAPE '\\')`); params.push(like(v), like(v)) }
+  for (const v of q.not.to) { where.push(`NOT (wm_fold(m.to_text) LIKE ? ESCAPE '\\' OR wm_fold(m.cc_text) LIKE ? ESCAPE '\\')`); params.push(like(v), like(v)) }
+  for (const v of q.not.subject) { where.push(`wm_fold(m.subject) NOT LIKE ? ESCAPE '\\'`); params.push(like(v)) }
+  for (const v of q.not.attachment) { where.push(`NOT EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND wm_fold(a.name) LIKE ? ESCAPE '\\')`); params.push(like(v)) }
+  for (const v of q.not.folder) { where.push(`m.folder_id NOT IN (SELECT id FROM folders WHERE wm_fold(path) LIKE ? ESCAPE '\\')`); params.push(like(v)) }
+  for (const v of q.not.label) { where.push(`wm_fold(m.labels) NOT LIKE ? ESCAPE '\\'`); params.push(like(v)) }
   if (q.before !== null) { where.push('m.date < ?'); params.push(q.before) }
   if (q.after !== null) { where.push('m.date >= ?'); params.push(q.after) }
   if (q.hasAttachment) where.push('m.has_attachments = 1')

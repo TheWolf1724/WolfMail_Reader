@@ -21,7 +21,7 @@ Lector de correo de solo lectura (msg, eml, mbox, pst, ost; cuentas IMAP Google/
 - No cambiar la CSP ni el aislamiento del iframe del cuerpo sin revisión de seguridad.
 - Cualquier fecha de cabecera ilegible debe quedar nula, nunca "ahora" (`headerDate`).
 - Datos de prueba: `tests/fixtures` (msg de HiraokaHyperTools/msgreader) y los PST/OST de `node_modules/pst-extractor/example/testdata`. No subir correos reales.
-- Sin push, sin releases ni repos nuevos hasta que el usuario lo pida. Git local.
+- Repo: https://github.com/TheWolf1724/WolfMail_Reader (rama main). Releases en GitHub: solo las 2 ultimas versiones (borrar la mas antigua con `gh release delete vX.Y.Z --cleanup-tag`). Versionado X.Y.Z: X grande, Y medio, Z pequeno.
 
 ## Particularidades
 - `ready-to-show` puede no llegar en entornos sin aceleración: la ventana se muestra también tras `did-finish-load`.
