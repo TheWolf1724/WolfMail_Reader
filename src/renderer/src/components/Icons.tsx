@@ -15,6 +15,7 @@ export const IconUser = (p: P) => <svg {...base} {...p}><circle cx="12" cy="8" r
 export const IconTrash = (p: P) => <svg {...base} {...p}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
 export const IconSave = (p: P) => <svg {...base} {...p}><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" /></svg>
 export const IconPrint = (p: P) => <svg {...base} {...p}><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z" /></svg>
+export const IconReply = (p: P) => <svg {...base} {...p}><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 6 6v3" /></svg>
 export const IconCode = (p: P) => <svg {...base} {...p}><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 5l-4 14" /></svg>
 export const IconRefresh = (p: P) => <svg {...base} {...p}><path d="M20 11a8 8 0 0 0-14.9-3M4 5v4h4M4 13a8 8 0 0 0 14.9 3M20 19v-4h-4" /></svg>
 export const IconMenu = (p: P) => <svg {...base} {...p}><path d="M4 7h16M4 12h16M4 17h16" /></svg>

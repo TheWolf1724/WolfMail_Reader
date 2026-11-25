@@ -1,3 +1,4 @@
+import { printMsg, replyMsg } from './actions'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AttachmentInfo, FolderInfo, ImportProgress, ListFilter, MessageFull, MessageRow, Settings, SourceInfo } from '../../core/types'
 import { DEFAULT_SETTINGS } from '../../core/types'
@@ -125,6 +126,8 @@ export function App(): JSX.Element {
     else if (a === 'help') setModal({ kind: 'help' })
     else if (a === 'about') setModal({ kind: 'about' })
     else if (a === 'search') searchRef.current?.focus()
+    else if (selected && a === 'print') void printMsg(selected.id, t, notify)
+    else if (selected && (a === 'reply' || a === 'reply-all' || a === 'forward')) void replyMsg(selected.id, a === 'reply-all' ? 'all' : a, t, notify)
   }
 
   const finished = job && (job.phase === 'terminado' || job.phase === 'error' || job.phase === 'cancelado')

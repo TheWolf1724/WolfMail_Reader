@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import type { AttachmentInfo, MessageFull, MessageRow } from '../../../core/types'
 import { avatarColor, formatDate, formatSize, initials, senderLabel } from '../format'
 import { HtmlBody } from './HtmlBody'
-import { IconBack, IconClip, IconCode, IconPrint, IconSave } from './Icons'
+import { IconBack, IconClip, IconCode, IconPrint, IconReply, IconSave } from './Icons'
+import { printMsg, replyMsg } from '../actions'
 import { useT } from '../i18n'
 
 interface Props {
@@ -87,7 +88,11 @@ export function Reader({ row, lang, fontScale, allowRemoteAlways, narrow, onBack
                   </dl>
                   <div className="actions">
                     <button className="btn" onClick={() => onHeaders(m)}><IconCode />{t('Ver cabeceras')}</button>
-                    <button className="btn" onClick={async () => { const p = await window.wolf.exportPdf(m.id); if (p) onNotify(`${t('Guardado')}: ${p}`) }}><IconPrint />{t('Imprimir / PDF')}</button>
+                    <button className="btn" onClick={() => replyMsg(m.id, 'reply', t, onNotify)}><IconReply />{t('Responder')}</button>
+                    <button className="btn" onClick={() => replyMsg(m.id, 'all', t, onNotify)}>{t('Responder a todos')}</button>
+                    <button className="btn" onClick={() => replyMsg(m.id, 'forward', t, onNotify)}>{t('Reenviar')}</button>
+                    <button className="btn" onClick={() => printMsg(m.id, t, onNotify)}><IconPrint />{t('Imprimir')}</button>
+                    <button className="btn" onClick={async () => { const p = await window.wolf.exportPdf(m.id); if (p) onNotify(`${t('Guardado')}: ${p}`) }}><IconSave />{t('Exportar a PDF')}</button>
                     <button className="btn" onClick={async () => { const p = await window.wolf.saveSource(m.id); if (p) onNotify(`${t('Guardado')}: ${p}`) }}><IconSave />{t('Guardar como .eml')}</button>
                   </div>
                   {blocked.has(m.id) && !remoteOk.has(m.id) && !allowRemoteAlways && (

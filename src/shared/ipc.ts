@@ -54,6 +54,8 @@ export interface WolfApi {
   openAttachment(id: number): Promise<'opened' | 'blocked' | 'error'>
   openExternal(url: string): Promise<boolean>
   exportPdf(messageId: number): Promise<string | null>
+  printMessage(messageId: number): Promise<'printed' | 'cancelled' | 'viewer' | 'error'>
+  replyMessage(messageId: number, mode: 'reply' | 'all' | 'forward'): Promise<boolean>
   saveSource(messageId: number): Promise<string | null>
 
   getSettings(): Promise<Settings>
@@ -71,7 +73,7 @@ export interface WolfApi {
 export const CHANNELS = [
   'appInfo', 'stats', 'listSources', 'listFolders', 'count', 'list', 'getMessage', 'getThread', 'markRead',
   'removeSource', 'pickFiles', 'pickFolder', 'startImport', 'cancelJob', 'saveAttachment', 'openAttachment',
-  'openExternal', 'exportPdf', 'saveSource', 'getSettings', 'setSettings', 'systemPrefersDark', 'listAccounts',
+  'openExternal', 'exportPdf', 'printMessage', 'replyMessage', 'saveSource', 'getSettings', 'setSettings', 'systemPrefersDark', 'listAccounts',
   'addPasswordAccount', 'startOAuth', 'removeAccount', 'syncAccount'
 ] as const
 export type Channel = (typeof CHANNELS)[number]

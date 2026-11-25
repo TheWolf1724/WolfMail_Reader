@@ -62,7 +62,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }): JSX.Element {
   const rows: [string, string][] = [
     ['Ctrl+O', t('Abrir archivos')], ['Ctrl+Mayús+O', t('Abrir carpeta')], ['Ctrl+F  o  /', t('Buscar en el correo')],
     ['↑ ↓  /  j k', t('Mensaje anterior / siguiente')], ['Inicio / Fin', t('Primer / último mensaje')], ['Intro  o  →', t('Pasar el foco al mensaje')],
-    ['F6', t('Cambiar de panel (carpetas, lista, lectura)')], ['Ctrl+,', t('Ajustes')], ['F1  o  ?', t('Atajos de teclado')], ['Esc', t('Cerrar diálogo o limpiar búsqueda')]
+    ['F6', t('Cambiar de panel (carpetas, lista, lectura)')], ['Ctrl+P', t('Imprimir')], ['Ctrl+R', t('Responder')], ['Ctrl+Mayús+R', t('Responder a todos')], ['Ctrl+Mayús+F', t('Reenviar')], ['Ctrl+,', t('Ajustes')], ['F1  o  ?', t('Atajos de teclado')], ['Esc', t('Cerrar diálogo o limpiar búsqueda')]
   ]
   const ops: [string, string][] = [
     ['de:ana', t('remitente contiene "ana"')], ['para:luis', t('destinatario')], ['asunto:factura', t('asunto')],

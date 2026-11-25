@@ -172,6 +172,10 @@ function buildMenu(): void {
       { label: 'Abrir archivos...', accelerator: 'CmdOrCtrl+O', click: action('open-files') },
       { label: 'Abrir carpeta...', accelerator: 'CmdOrCtrl+Shift+O', click: action('open-folder') },
       { label: 'Cuentas...', click: action('accounts') },
+      { label: 'Imprimir mensaje...', accelerator: 'CmdOrCtrl+P', click: action('print') },
+      { label: 'Responder', accelerator: 'CmdOrCtrl+R', click: action('reply') },
+      { label: 'Responder a todos', accelerator: 'CmdOrCtrl+Shift+R', click: action('reply-all') },
+      { label: 'Reenviar', accelerator: 'CmdOrCtrl+Shift+F', click: action('forward') },
       { type: 'separator' }, { role: 'quit', label: 'Salir' }
     ] },
     { label: 'Edicion', submenu: [
@@ -261,6 +265,11 @@ function registerIpc(): void {
     return true
   })
   handle('exportPdf', (id) => exportPdf(int(id, 'id')))
+  handle('printMessage', (id) => printMessage(int(id, 'id')))
+  handle('replyMessage', (id, mode) => {
+    if (mode !== 'reply' && mode !== 'all' && mode !== 'forward') throw new Error('Modo no valido')
+    return replyMessage(int(id, 'id'), mode)
+  })
   handle('saveSource', async (id) => {
     const m = lib.getMessage(int(id, 'id'))
     if (!m) return null
@@ -337,28 +346,95 @@ function registerIpc(): void {
   })
 }
 
+function buildPrintDoc(m: MessageFull): string {
+  const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+  const p = present(m)
+  const fmt = (l: { name: string; email: string }[]): string => esc(l.map((x) => (x.name ? `${x.name} <${x.email}>` : x.email)).join(', '))
+  const body = p.html ?? `<pre style="white-space:pre-wrap;font:inherit">${esc(p.text)}</pre>`
+  const atts = m.attachments.filter((x) => !x.inline || !x.cid).map((x) => esc(x.name)).join(', ')
+  return `<!doctype html><html><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${SCHEME}: data:; style-src 'unsafe-inline'">
+<style>body{font:13px/1.45 system-ui,sans-serif;color:#111;margin:0}h1{font-size:18px;margin:0 0 8px}dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid #999}dt{color:#555}dd{margin:0}</style></head>
+<body><h1>${esc(p.subject || '(sin asunto)')}</h1><dl><dt>De</dt><dd>${esc(p.fromName ? `${p.fromName} <${p.fromEmail}>` : p.fromEmail)}</dd><dt>Para</dt><dd>${fmt(p.to)}</dd>${p.cc.length ? `<dt>Cc</dt><dd>${fmt(p.cc)}</dd>` : ''}<dt>Fecha</dt><dd>${p.date ? esc(new Date(p.date).toLocaleString('es-ES')) : ''}</dd>${atts ? `<dt>Adjuntos</dt><dd>${atts}</dd>` : ''}</dl>${body}</body></html>`
+}
+
+// Ventana oculta sin JavaScript y sin red: el HTML del correo no puede ejecutar nada.
+async function withPrintWindow<T>(m: MessageFull, fn: (w: BrowserWindow) => Promise<T>): Promise<T> {
+  const w = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true, contextIsolation: true, partition: 'pdf-export' } })
+  try {
+    await w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPrintDoc(m)))
+    return await fn(w)
+  } finally {
+    w.destroy()
+  }
+}
+
 async function exportPdf(id: number): Promise<string | null> {
   const m = lib.getMessage(id)
   if (!m) return null
   const r = await dialog.showSaveDialog(win!, { title: 'Exportar a PDF', defaultPath: safeName(m.subject || 'mensaje') + '.pdf', filters: [{ name: 'PDF', extensions: ['pdf'] }] })
   if (r.canceled || !r.filePath) return null
-  const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
-  const p = present(m)
-  const fmt = (l: { name: string; email: string }[]): string => esc(l.map((x) => (x.name ? `${x.name} <${x.email}>` : x.email)).join(', '))
-  const body = p.html ?? `<pre style="white-space:pre-wrap;font:inherit">${esc(p.text)}</pre>`
-  const doc = `<!doctype html><html><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${SCHEME}: data:; style-src 'unsafe-inline'">
-<style>body{font:13px/1.45 system-ui,sans-serif;color:#111;margin:0}h1{font-size:18px;margin:0 0 8px}dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid #999}dt{color:#555}dd{margin:0}</style></head>
-<body><h1>${esc(p.subject || '(sin asunto)')}</h1><dl><dt>De</dt><dd>${esc(p.fromName ? `${p.fromName} <${p.fromEmail}>` : p.fromEmail)}</dd><dt>Para</dt><dd>${fmt(p.to)}</dd>${p.cc.length ? `<dt>Cc</dt><dd>${fmt(p.cc)}</dd>` : ''}<dt>Fecha</dt><dd>${p.date ? esc(new Date(p.date).toLocaleString('es-ES')) : ''}</dd></dl>${body}</body></html>`
-  // Ventana oculta sin JavaScript y sin red: el HTML del correo no puede ejecutar nada.
-  const w = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true, contextIsolation: true, partition: 'pdf-export' } })
-  try {
-    await w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(doc))
-    writeFileSync(r.filePath, await w.webContents.printToPDF({ pageSize: 'A4', printBackground: false }))
-    return r.filePath
-  } finally {
-    w.destroy()
+  const file = r.filePath
+  return withPrintWindow(m, async (w) => {
+    writeFileSync(file, await w.webContents.printToPDF({ pageSize: 'A4', printBackground: false }))
+    return file
+  })
+}
+
+/** Imprime con el dialogo del sistema. En Linux no hay dialogo fiable: se abre un PDF temporal en el visor. */
+async function printMessage(id: number): Promise<'printed' | 'cancelled' | 'viewer' | 'error'> {
+  const m = lib.getMessage(id)
+  if (!m) return 'error'
+  return withPrintWindow(m, async (w) => {
+    if (process.platform === 'win32' || process.platform === 'darwin') {
+      return new Promise((resolve) => {
+        w.webContents.print({ silent: false, printBackground: false }, (ok, why) => resolve(ok ? 'printed' : why === 'cancelled' || why === 'Print job canceled' ? 'cancelled' : 'error'))
+      })
+    }
+    const dir = mkdtempSync(join(app.getPath('temp'), 'wolfmail-imprimir-'))
+    openDirs.push(dir)
+    const file = join(dir, safeName(m.subject || 'mensaje') + '.pdf')
+    writeFileSync(file, await w.webContents.printToPDF({ pageSize: 'A4', printBackground: false }), { mode: 0o600 })
+    return (await shell.openPath(file)) === '' ? 'viewer' : 'error'
+  })
+}
+
+/** Responde o reenvia abriendo el cliente de correo del sistema (mailto:). WolfMail no envia correo. */
+async function replyMessage(id: number, mode: 'reply' | 'all' | 'forward'): Promise<boolean> {
+  const m = lib.getMessage(id)
+  if (!m) return false
+  const own = new Set(store.accounts.map((a) => (a.user ?? '').toLowerCase()).filter(Boolean))
+  const seen = new Set<string>()
+  const pick = (l: { name: string; email: string }[]): string[] => l.filter((x) => {
+    const k = x.email.toLowerCase()
+    if (!k || seen.has(k) || own.has(k)) return false
+    seen.add(k)
+    return true
+  }).map((x) => x.email)
+  let to: string[] = []
+  let cc: string[] = []
+  if (mode !== 'forward') {
+    to = pick(m.fromEmail ? [{ name: m.fromName, email: m.fromEmail }] : [])
+    if (mode === 'all') { to.push(...pick(m.to)); cc = pick(m.cc) }
+    if (!to.length && m.fromEmail) to = [m.fromEmail]
   }
+  const re = mode === 'forward' ? /^(fwd?|rv|reenv):\s*/i : /^(re|rv):\s*/i
+  const subject = (mode === 'forward' ? 'Fwd: ' : 'Re: ') + (m.subject || '').replace(re, '')
+  const when = m.date ? new Date(m.date).toLocaleString('es-ES') : ''
+  const who = m.fromName ? `${m.fromName} <${m.fromEmail}>` : m.fromEmail
+  const quoted = m.text.trim().split(/\r?\n/).map((l) => '> ' + l).join('\n')
+  let intro = mode === 'forward' ? `\n\n---------- Mensaje reenviado ----------\nDe: ${who}\nFecha: ${when}\nAsunto: ${m.subject}\n\n` : `\n\nEl ${when}, ${who} escribio:\n`
+  let body = intro + (mode === 'forward' ? m.text.trim() : quoted)
+  // Algunos clientes (Windows) rechazan mailto largos: se recorta el citado.
+  const MAX = 1500
+  if (encodeURIComponent(body).length > MAX) {
+    while (body.length > 50 && encodeURIComponent(body).length > MAX) body = body.slice(0, Math.floor(body.length * 0.9))
+    body += '\n[...]'
+  }
+  const q = [`subject=${encodeURIComponent(subject)}`, `body=${encodeURIComponent(body)}`]
+  if (cc.length) q.push(`cc=${encodeURIComponent(cc.join(','))}`)
+  await shell.openExternal(`mailto:${to.map(encodeURIComponent).join(',')}?${q.join('&')}`)
+  return true
 }
 
 // ---------- Arranque ----------

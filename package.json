@@ -1,7 +1,7 @@
 {
   "name": "wolfmail",
   "productName": "WolfMail",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lector de correo electronico para .msg, .eml, .mbox, .pst y cuentas Gmail/Outlook (solo lectura)",
   "author": "TheWolf1724",
   "license": "MIT",
