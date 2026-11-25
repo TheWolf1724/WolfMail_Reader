@@ -18,6 +18,9 @@ Use un prefijo de Wine desechable (`WINEPREFIX=/tmp/wine-build`) y una pantalla 
 
 La version sale de `package.json`. Esquema `mayor.menor.parche`: mayor para cambios grandes, menor para funciones, parche para arreglos. Anotar cada cambio en `CHANGELOG.md`.
 
+## Versiones y publicacion
+Version X.Y.Z: X para cambios grandes, Y para cambios medios, Z para los pequenos. En GitHub (Releases) se conservan solo las **2 ultimas versiones de Windows y las 2 ultimas de Linux**; al publicar una nueva se borra la mas antigua (`gh release delete vX.Y.Z --cleanup-tag`). Ficheros: `WolfMail-X.Y.Z-windows-setup.exe`, `-windows-portable.exe`, `-linux-amd64.deb`, `-linux-portable.AppImage`.
+
 ## Firma de codigo
 
 Los ejecutables no estan firmados: Windows mostrara "SmartScreen: editor desconocido" y habra que pulsar "Mas informacion, Ejecutar de todas formas". Firmar requiere un certificado de pago, fuera del alcance del proyecto (coste cero).
