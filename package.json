@@ -41,9 +41,9 @@
     "nodemailer": "^10.6.1",
     "pst-extractor": "^1.12.0"
   },
-  "homepage": "https://github.com/TheWolf1724/wolfmail",
+  "homepage": "https://github.com/TheWolf1724/WolfMail_Reader",
   "repository": {
     "type": "git",
-    "url": "https://github.com/TheWolf1724/wolfmail.git"
+    "url": "https://github.com/TheWolf1724/WolfMail_Reader.git"
   }
 }
